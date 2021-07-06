@@ -74,5 +74,5 @@ class SplitData:
         return self.testing_path
 
 
-x = SplitData("D:/2018/Ext_/RFL_ER-CT_31_20171122_144104_split_000/1/sorted_samples/grid_only", 0.7, 0.15, 0.15)
+x = SplitData("D:/Main/GitHub/Neuro-Trajectory/Neuro-Trajectory-Proj/images", 0.7, 0.15, 0.15)
 x.split()

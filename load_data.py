@@ -227,8 +227,11 @@ class LoadData(object):
         print(self.data_path)
         self.number_of_classes = len(next(os.walk(self.data_path + '/training/'))[1])
         print('Number of classes found : ', self.number_of_classes)
-
-        if self.type is 'lstm_sliding' or self.type is 'lstm_bucketing':
+        print('Model type : ',self.type)
+        # FS: 'is' is not correct, changing to '=='. 'is' should only be used to check objects are the same
+        #      as a result this was always reverting to else statement and causing the input array shape to
+        #      be incorrect for sequencing
+        if self.type == 'lstm_sliding' or self.type == 'lstm_bucketing':
             self.X_train = np.zeros(shape=(0, 3, self.image_height, self.image_width, self.image_channels))
             self.X_valid = np.zeros(shape=(0, 3, self.image_height, self.image_width, self.image_channels))
             self.X_test = np.zeros(shape=(0, 3, self.image_height, self.image_width, self.image_channels))
