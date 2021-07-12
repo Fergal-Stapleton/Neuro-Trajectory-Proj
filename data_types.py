@@ -13,8 +13,8 @@ DATA_SET_INFO = {'data_set_path': 'D:/Main/GitHub/Neuro-Trajectory/Neuro-Traject
                  'image_width': 128,
                  'image_channels': 3,
                  'image_depth': 1,
-                 'num_classes': 1,
-                 'classes_name': ['city']
+                 'num_classes': 3,
+                 'classes_name': ['l1', 'l2', 'l3']
                  #'classes_name': ['city', 'country_road', 'highway', 'parking_lot', 'traffic_jam']
                  }
 
