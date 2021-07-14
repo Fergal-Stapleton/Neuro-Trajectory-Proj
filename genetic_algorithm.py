@@ -61,6 +61,7 @@ class GeneticAlgorithm:
         evolver = Evolver(self.params)
         genomes = evolver.create_population(self.population)
 
+        print(" ...opening result.csv")
         ofile = open(self.path + '/result.csv', "w")
         writer = csv.writer(ofile, delimiter=',')
 

@@ -101,6 +101,9 @@ def main():
     data_set = load_data(MODEL_NAME)
     print('Done! \n')
 
+    #print(data_set.Y_train.shape[0])
+    #print(data_set.Y_train.shape[1])
+
     if GA == 'no' and GS == 'no':
         one_train(path, data_set, model_function, parameters)
 

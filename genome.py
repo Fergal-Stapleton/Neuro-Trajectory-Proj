@@ -27,13 +27,13 @@ class Genome():
         self.u_ID = u_ID
         self.parents = [mom_ID, dad_ID]
         self.generation = gen
-        
+
         #hash only makes sense when we have specified the genes
         if not geneparam:
             self.hash = 0
         else:
             self.update_hash()
-        
+
     def update_hash(self):
         """
         Refesh each genome's unique hash - needs to run after any genome changes.
@@ -44,15 +44,15 @@ class Genome():
 
         self.hash = hashlib.md5(genh.encode("UTF-8")).hexdigest()
         self.accuracy = 0.0
-            
+
     def set_genes_random(self):
         """Create a random genome."""
         self.parents = [0, 0]
         for key in self.all_possible_genes:
             self.geneparam[key] = random.choice(self.all_possible_genes[key])
-                
+
         self.update_hash()
-        
+
     def mutate_one_gene(self):
         """Randomly mutate one gene in the genome.
 
@@ -73,7 +73,7 @@ class Genome():
         possible_choices.remove(current_value)
         self.geneparam[gene_to_mutate] = random.choice( possible_choices )
         self.update_hash()
-    
+
     def set_generation(self, generation):
         """needed when a genome is passed on from one generation to the next.
         the id stays the same, but the generation is increased"""
@@ -117,6 +117,10 @@ class Genome():
         # Helper: Early stopping.
         early_stopper = EarlyStopping(monitor='val_loss', min_delta=0.1, patience=5, verbose=0, mode='auto')
         history = TrainingHistoryPlot(path, dataset, parameters)
+        print("Y_train [0] just before fit: " + str(dataset.Y_train.shape[0]))
+        print("Y_train [1] just before fit: " + str(dataset.Y_train.shape[1]))
+        print("Y_valid [0] just before fit: " + str(dataset.Y_valid.shape[0]))
+        print("Y_valid [1] just before fit: " + str(dataset.Y_valid.shape[1]))
         model.fit(dataset.X_train, dataset.Y_train,
                   batch_size=batch_size,
                   epochs=epochs,
@@ -158,7 +162,7 @@ class Genome():
     def print_geneparam(self):
         g = self.geneparam.copy()
         logging.info(g)
-    
+
     # convert nb_neurons_i at each layer to a single list
     def nb_neurons(self):
       nb_neurons = [None] * 6

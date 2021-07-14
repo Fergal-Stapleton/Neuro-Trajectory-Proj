@@ -3,85 +3,117 @@ import numpy as np
 from os import walk
 import math
 import matplotlib.pyplot as plt
+import sys
 
 #TODO need to arrange code in functions and classes
 
-def main():
-    df = pd.read_csv("images/replay.txt", sep=',', header=None)
-    print(df.head())
+class LoadTraj:
+    def getTraj():
+        df = pd.read_csv("images/state_buf.txt", sep='\t', header=None)
+        print(df.head())
+        sys.exit()
 
-    df_training = pd.DataFrame()
-    df_testing = pd.DataFrame()
-    df_validation = pd.DataFrame()
+        df_training = pd.DataFrame()
+        df_testing = pd.DataFrame()
+        df_validation = pd.DataFrame()
 
-    folder_list = ["training", "testing", "validation"]
+        folder_list = ["training", "testing", "validation"]
 
-    for folder in folder_list:
-        #print(folder)
-        mypath = "images_splited/"+folder+"/image"
+        for folder in folder_list:
+            #print(folder)
+            mypath = "images_splited/"+folder+"/image"
 
-        # Walk the path
-        filenames = next(walk(mypath), (None, None, []))[2]
-        index_list = []
+            # Walk the path
+            filenames = next(walk(mypath), (None, None, []))[2]
+            index_list = []
 
-        for filename in filenames:
-            end_of_timestamp_index = filename.find('_')
-            timestamp = int(filename[:end_of_timestamp_index])
-            index_list.append(timestamp)
+            seq_len = 3
 
-        if folder == "training":
-            df_training = df.loc[df.index[index_list]]
-        elif folder == "testing":
-            df_testing = df.loc[df.index[index_list]]
-        elif folder == "validation":
-            df_validation = df.loc[df.index[index_list]]
-        else:
-            print("folder does not exist in list of folders, required list: " + folder)
-            sys.exit()
+            for filename in filenames:
+                end_of_timestamp_index = filename.find('_')
+                timestamp = int(filename[:end_of_timestamp_index])
+                index_list.append(timestamp)
 
-    print("Training df shape:"+str(df_training.shape))
-    print("Testing df shape:"+str(df_testing.shape))
-    print("Validation df shape:"+str(df_validation.shape))
+            if folder == "training":
+                df_training = df.loc[df.index[index_list]]
+                print("Training df shape:"+str(df_training.shape))
+                p = df_training.to_numpy()
+                l1 = l1_objective(p, seq_len)
+                l2 = l2_objective(p, seq_len)
+                l3 = l3_objective(p, seq_len)
+                Obj_train = np.column_stack((l1, l2, l3))
+                Y_train = np.array(trajectory(p, seq_len))
+                print("Got here no?")
+                print(Y_train)
+            elif folder == "testing":
+                df_testing = df.loc[df.index[index_list]]
+                print("Testing df shape:"+str(df_testing.shape))
+                p = df_testing.to_numpy()
+                l1 = l1_objective(p, seq_len)
+                l2 = l2_objective(p, seq_len)
+                l3 = l3_objective(p, seq_len)
+                Obj_test = np.column_stack((l1, l2, l3))
+                Y_test = np.array( trajectory(p, seq_len))
+            elif folder == "validation":
+                df_validation = df.loc[df.index[index_list]]
+                print("Validation df shape:"+str(df_validation.shape))
+                p = df_validation.to_numpy()
+                l1 = l1_objective(p, seq_len)
+                l2 = l2_objective(p, seq_len)
+                l3 = l3_objective(p, seq_len)
+                Obj_validation = np.column_stack((l1, l2, l3))
+                Y_validation = np.array(trajectory(p, seq_len))
+            else:
+                print("folder does not exist in list of folders, required list: " + folder)
+                sys.exit()
 
-    p = df_training.to_numpy()
-    print(p)
-    seq_len = 3
+        return Y_train, Y_test, Y_validation
 
-    # Objectives for our MO
-    l = [l1, l2, l3]
 
-    #plt.scatter(l1,l3)
-    #plt.show()
+def trajectory(p, seq_len):
+    traj = []
+    for i in range(math.floor(len(p)/seq_len)-1):
+        j = seq_len * i
+        coord = []
+        x0 = p[j][0]
+        y0 = p[j][1]
+        j = seq_len * i
+        # The image filename will be dropped later in get_input_sequences()
+        #coord.append
+        for k in range(1, seq_len):
+            #print(k)
+            xk = p[j+k][0]
+            yk = p[j+k][1]
+            # These may be neg
+            x = xk - x0
+            y = yk - y0
+            coord.append(x)
+            coord.append(y)
+        traj.append(coord)
+    return traj
 
-    # TODO add l2 here
-    Y_train = np.column_stack((l1, l3))
-
-    # Can do a simple test to check dominance function works
-    # When properly implemented Will be doing this with predicted Y
-    non_dom = is_pareto_efficient_simple(Y_train)
-    print(non_dom)
 
 # Eqn 3. NeuroTrajectory distance-based feedback
-def l1_objective():
+def l1_objective(p, seq_len):
     """
     Calculate Eqn 3. NeuroTrajectory distance-based feedback
     :params: Numpy array of input data
     :return: list, each element is the distance-based feedback corresponding to the ith sequence of OGs
     """
     l1 = []
-    for i in range(0,math.floor(len(p)/seq_len)-1):
+    for i in range(math.floor(len(p)/seq_len)-1):
         j = seq_len * i
         temp=0.0
-        for k in range(0, seq_len - 1):
+        for k in range(seq_len):
             x2 = p[j+k][0]
-            x1 = p[j+k+(seq_len-1)][0]
+            x1 = p[j+(seq_len-1)][0]
             y2 = p[j+k][1]
-            y1 = p[j+k+(seq_len-1)][1]
+            y1 = p[j+(seq_len-1)][1]
             temp += np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
         l1.append(temp)
     return l1
 
-def l2_objective():
+def l2_objective(p, seq_len):
     """
     Calculate Eqn 4. NeuroTrajectory lateral velocity
     :params: Numpy array of input data
@@ -89,16 +121,16 @@ def l2_objective():
     """
     l2 = []
     # Calculate velocity as rate of change in position across fixed sequence length
-    for i in range(0,math.floor(len(p)/seq_len)-1):
+    for i in range(math.floor(len(p)/seq_len)-1):
+        j = seq_len * i
         vd = 0.0
-        for k in range(0, seq_len - 2):
+        for k in range(seq_len):
             # diff between each sequence
-            vd += p[i+k+1][0] - p[i+k][0]
-        vd = vd/seq_len
+            vd += np.abs(p[j+k+1][0] - p[j+k][0])/seq_len
         l2.append(vd)
     return l2
 
-def l3_objective():
+def l3_objective(p, seq_len):
     """
     Calculate Eqn 5. NeuroTrajectory longtitudinal velocity
     :params: Numpy array of input data
@@ -106,12 +138,12 @@ def l3_objective():
     """
     l3 = []
     # Calculate velocity as rate of change in position across fixed sequence length
-    for i in range(0,math.floor(len(p)/seq_len)-1):
+    for i in range(math.floor(len(p)/seq_len)-1):
+        j = seq_len * i
         vf = 0.0
-        for k in range(0, seq_len - 2):
+        for k in range(seq_len):
             # diff between each sequence
-            vf += p[i+k+1][1] - p[i+k][1]
-        vf = vf/seq_len
+            vf += np.abs(p[j+k+1][1] - p[j+k][1])/seq_len
         l3.append(vf)
     return l3
 
@@ -130,5 +162,3 @@ def is_pareto_efficient_simple(costs):
             is_efficient[is_efficient] = np.any(costs[is_efficient]<c, axis=1)  # Keep any point with a lower cost
             is_efficient[i] = True  # And keep self
     return is_efficient
-
-main()

@@ -1,6 +1,8 @@
 import numpy as np
 import os
 from PIL import Image
+from loadTraj import LoadTraj
+import sys
 
 
 def shuffle_in_unison(a, b):
@@ -44,6 +46,14 @@ class LoadData(object):
         return sample
 
     def get_input_sequences(self, sequences, y, class_idx, source_dir_path_complete, files):
+        """
+        Creates the image sequences for our input images. class_idx is incremented
+
+        Called as:
+            self.get_input_sequences(self.X_train, self.Y_train,class_idx, f + '/', files)
+        :params:
+        :return:
+        """
         # timestamp is not allowed to jump more than 0.3 seconds from one frame to another
         max_timestamp_delta = 300000  # [microseconds]
         sequences_counter = 0
@@ -79,7 +89,10 @@ class LoadData(object):
             if slide is True:
                 timestamp_prev = self.get_timestamp_from_file_name(files[start_idx - 1][0])
 
+            # Jump 3 at a time
             for idx in range(start_idx, start_idx + image_sequence_length):
+                if(idx == start_idx):
+                    #print(start_idx)
                 # get timestamp of current image
                 timestamp_curr = self.get_timestamp_from_file_name(files[idx][0])
 
@@ -100,7 +113,7 @@ class LoadData(object):
 
                 # check if the timestamp did not jumped more than 300 ms
                 if delta > max_timestamp_delta:
-                    print('Timestamp jump. Dropp current sequence')
+                    print('Timestamp jump. Drop current sequence')
 
                     # set the current IDX as the start point for the next sequence
                     start_idx = idx
@@ -132,8 +145,10 @@ class LoadData(object):
             if sequence_complete is True:
                 sequences = np.concatenate((sequences, sequence), axis=0)
                 sequence_output = np.zeros(shape=(1, self.number_of_classes))
-                sequence_output[0][class_idx] = 1
-                y = np.concatenate((y, sequence_output), axis=0)
+
+
+                #sequence_output[0][class_idx] = 1
+                #y = np.concatenate((y, sequence_output), axis=0)
                 sequences_counter += 1
 
             # refresh the sequence for the next series
@@ -144,6 +159,15 @@ class LoadData(object):
 
     def load_lstm_data(self, folder):
         class_idx = 0
+
+        # ************************************************************** #
+        # FS: 13/07/2021
+
+        self.Y_train, self.Y_test, self.Y_valid = LoadTraj.getTraj()
+        print("...trajectory information Loaded")
+        #print(self.Y_train)
+
+        # ************************************************************** #
 
         for directories in os.listdir(self.data_path + '/' + folder + '/'):
             dir = os.path.join("", directories)
@@ -190,6 +214,8 @@ class LoadData(object):
 
                 sample = Image.open(self.data_path + '/' + folder + '/' + dir + '/' + file)
                 sample = self.resize_image(sample)
+
+                # NO - this is wrong
                 y = np.zeros(shape=(1, self.number_of_classes))
                 y[0][class_idx] = 1
 
@@ -243,6 +269,8 @@ class LoadData(object):
         self.Y_train = np.zeros(shape=(0, self.number_of_classes))
         self.Y_valid = np.zeros(shape=(0, self.number_of_classes))
         self.Y_test = np.zeros(shape=(0, self.number_of_classes))
+        #print("Got here")
+        print("Y_train after init: ", self.Y_train.shape[1])
 
         folders = {'training', 'validation', 'testing'}
         for f in folders:

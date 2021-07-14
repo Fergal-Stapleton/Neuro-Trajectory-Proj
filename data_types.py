@@ -13,8 +13,9 @@ DATA_SET_INFO = {'data_set_path': 'D:/Main/GitHub/Neuro-Trajectory/Neuro-Traject
                  'image_width': 128,
                  'image_channels': 3,
                  'image_depth': 1,
-                 'num_classes': 3,
-                 'classes_name': ['l1', 'l2', 'l3']
+                 'num_classes': 4,
+                 # x1 and y1 are alway zero so no need to predict
+                 'classes_name': ['x2', 'y2', 'x3', 'y3']
                  #'classes_name': ['city', 'country_road', 'highway', 'parking_lot', 'traffic_jam']
                  }
 

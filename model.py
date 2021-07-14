@@ -98,7 +98,6 @@ def conv3d_model(X_train_shape, parameters):
     print('Build model...')
     print('X_train shape: ', X_train_shape)
 
-
     logging.info("Architecture:%s,%s,%s,%s" % (loss_function, optimizer, hidden_units, fc_layers))
 
     model = Sequential()
@@ -126,6 +125,7 @@ def lstm_model(X_train_shape, parameters):
 
     print('Build model...')
     print('X_train shape: ', X_train_shape)
+    print('Final layer', DATA_SET_INFO['num_classes'])
 
     input_shape = (DATA_SET_INFO['image_channels'], DATA_SET_INFO['image_width'],
                    DATA_SET_INFO['image_height'], DATA_SET_INFO['image_channels'])
@@ -291,8 +291,13 @@ def lstm_model(X_train_shape, parameters):
             model.add((LSTM((hidden_units * 10), return_sequences=False)))
             model.add(Dropout(dropout_parameter))
 
-    model.add(Dense(DATA_SET_INFO['num_classes'], activation='softmax'))
+
+    model.add(Dense(DATA_SET_INFO['num_classes'], activation='relu'))
     model.compile(loss=loss_function, optimizer=optimizer, metrics=['accuracy'])
+
     print(model.summary())
+
+
+
 
     return model
