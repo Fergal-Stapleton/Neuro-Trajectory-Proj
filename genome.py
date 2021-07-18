@@ -71,6 +71,8 @@ class Genome():
         current_value = self.geneparam[gene_to_mutate]
         possible_choices = copy.deepcopy(self.all_possible_genes[gene_to_mutate])
         possible_choices.remove(current_value)
+        print(self.geneparam[gene_to_mutate])
+        print( possible_choices )
         self.geneparam[gene_to_mutate] = random.choice( possible_choices )
         self.update_hash()
 
@@ -116,6 +118,8 @@ class Genome():
         parameters.append(self.geneparam['epochs'])
         # Helper: Early stopping.
         early_stopper = EarlyStopping(monitor='val_loss', min_delta=0.1, patience=5, verbose=0, mode='auto')
+        # FS: 18/07/2021: This is problematic as it is set up for classification
+        #                 I will comment out line 49 and 50 from training_history_plot
         history = TrainingHistoryPlot(path, dataset, parameters)
         print("Y_train [0] just before fit: " + str(dataset.Y_train.shape[0]))
         print("Y_train [1] just before fit: " + str(dataset.Y_train.shape[1]))

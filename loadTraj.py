@@ -4,14 +4,16 @@ from os import walk
 import math
 import matplotlib.pyplot as plt
 import sys
+from natsort import index_natsorted
 
 #TODO need to arrange code in functions and classes
 
 class LoadTraj:
     def getTraj():
-        df = pd.read_csv("images/state_buf.txt", sep='\t', header=None)
-        print(df.head())
-        sys.exit()
+        df = pd.read_csv("images/state_buf.txt", sep='\t')
+        #print(df.shape[0])
+        #print(df.head())
+        #sys.exit()
 
         df_training = pd.DataFrame()
         df_testing = pd.DataFrame()
@@ -26,7 +28,7 @@ class LoadTraj:
             # Walk the path
             filenames = next(walk(mypath), (None, None, []))[2]
             index_list = []
-
+            #print(df.index[344])
             seq_len = 3
 
             for filename in filenames:
@@ -37,17 +39,17 @@ class LoadTraj:
             if folder == "training":
                 df_training = df.loc[df.index[index_list]]
                 print("Training df shape:"+str(df_training.shape))
+                df_training = df_training.sort_values(by="ImageName", key=lambda x: np.argsort(index_natsorted(df_training["ImageName"])))
                 p = df_training.to_numpy()
                 l1 = l1_objective(p, seq_len)
                 l2 = l2_objective(p, seq_len)
                 l3 = l3_objective(p, seq_len)
                 Obj_train = np.column_stack((l1, l2, l3))
                 Y_train = np.array(trajectory(p, seq_len))
-                print("Got here no?")
-                print(Y_train)
             elif folder == "testing":
                 df_testing = df.loc[df.index[index_list]]
                 print("Testing df shape:"+str(df_testing.shape))
+                df_testing = df_testing.sort_values(by="ImageName", key=lambda x: np.argsort(index_natsorted(df_testing["ImageName"])))
                 p = df_testing.to_numpy()
                 l1 = l1_objective(p, seq_len)
                 l2 = l2_objective(p, seq_len)
@@ -57,6 +59,7 @@ class LoadTraj:
             elif folder == "validation":
                 df_validation = df.loc[df.index[index_list]]
                 print("Validation df shape:"+str(df_validation.shape))
+                df_validation = df_validation.sort_values(by="ImageName", key=lambda x: np.argsort(index_natsorted(df_validation["ImageName"])))
                 p = df_validation.to_numpy()
                 l1 = l1_objective(p, seq_len)
                 l2 = l2_objective(p, seq_len)
@@ -72,14 +75,16 @@ class LoadTraj:
 
 def trajectory(p, seq_len):
     traj = []
-    for i in range(math.floor(len(p)/seq_len)-1):
+    for i in range(math.floor(len(p)/seq_len)):
         j = seq_len * i
         coord = []
         x0 = p[j][0]
         y0 = p[j][1]
         j = seq_len * i
         # The image filename will be dropped later in get_input_sequences()
-        #coord.append
+        #coord.append(str(p[j][5]).strip('_image.png'))
+        coord.append(p[j][5])
+        #print(p[j][5])
         for k in range(1, seq_len):
             #print(k)
             xk = p[j+k][0]
@@ -101,7 +106,7 @@ def l1_objective(p, seq_len):
     :return: list, each element is the distance-based feedback corresponding to the ith sequence of OGs
     """
     l1 = []
-    for i in range(math.floor(len(p)/seq_len)-1):
+    for i in range(math.floor(len(p)/seq_len)):
         j = seq_len * i
         temp=0.0
         for k in range(seq_len):
@@ -121,7 +126,7 @@ def l2_objective(p, seq_len):
     """
     l2 = []
     # Calculate velocity as rate of change in position across fixed sequence length
-    for i in range(math.floor(len(p)/seq_len)-1):
+    for i in range(math.floor(len(p)/seq_len)):
         j = seq_len * i
         vd = 0.0
         for k in range(seq_len):
@@ -138,7 +143,7 @@ def l3_objective(p, seq_len):
     """
     l3 = []
     # Calculate velocity as rate of change in position across fixed sequence length
-    for i in range(math.floor(len(p)/seq_len)-1):
+    for i in range(math.floor(len(p)/seq_len)):
         j = seq_len * i
         vf = 0.0
         for k in range(seq_len):

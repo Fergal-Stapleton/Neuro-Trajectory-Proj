@@ -23,10 +23,12 @@ def load_data(MODEL_NAME):
                         DATA_SET_INFO['image_depth'], DATA_SET_INFO['num_classes'])
 
     path_to_npy = './data_sets/' + MODEL_NAME + '/X_train.npy'
-    if os.path.exists(path_to_npy):
-        data_set.load_processed_data()
-    else:
-        data_set.load_new_data()
+
+    # FS: turn this off for now as it is causing code to fall over
+    #if os.path.exists(path_to_npy):
+    #    data_set.load_processed_data()
+    #else:
+    data_set.load_new_data()
 
     return data_set
 

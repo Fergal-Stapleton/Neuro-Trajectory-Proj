@@ -46,8 +46,8 @@ class TrainingHistoryPlot(keras.callbacks.Callback):
         plt.close()
 
         self.model.save(self.path + '/models/model_' + self.file_name + '.h5')
-        conf_matrix = ConfusionMatrix(self.path, self.file_name, self.data_set, self.model)
-        conf_matrix.run()
+        #conf_matrix = ConfusionMatrix(self.path, self.file_name, self.data_set, self.model)
+        #conf_matrix.run()
 
     def on_epoch_end(self, epoch, logs={}):
         self.losses.append(logs.get('loss'))

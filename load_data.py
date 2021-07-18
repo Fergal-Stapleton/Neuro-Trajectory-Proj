@@ -1,8 +1,10 @@
 import numpy as np
+import pandas as pd
 import os
 from PIL import Image
 from loadTraj import LoadTraj
 import sys
+from natsort import index_natsorted
 
 
 def shuffle_in_unison(a, b):
@@ -60,6 +62,18 @@ class LoadData(object):
         selected_sequences_per_class = 4500
         image_sequence_length = 3
         slide = False
+        # Will convert y data to pandas as it is easier to do comparisons
+        df_y = pd.DataFrame(y,  columns=['image','x1', 'y1', 'x2', 'y2'])
+        df_y = df_y.sort_values(by="image", key=lambda x: np.argsort(index_natsorted(df_y["image"])))
+        df_y = df_y.reset_index(drop=True)
+        #print(df_y.head())
+
+        # We should have a filename which correponds to the start of each image sequence
+        # Any filenames left over that do not correspond with this list must be dropped
+        # to insure dimensionality is correct
+        start_sequence_file = []
+        # Create a list of implausaible sequences to remove at the end
+        remove_implausible_list = []
 
         if self.type is 'lstm_sliding':
             slide = True
@@ -92,7 +106,10 @@ class LoadData(object):
             # Jump 3 at a time
             for idx in range(start_idx, start_idx + image_sequence_length):
                 if(idx == start_idx):
-                    #print(start_idx)
+                    #print(files[idx][0])
+                    start_sequence_file.append(files[idx][0])
+                    #print(df_y[df_y.index[df_y['image'] == str(files[idx][0])]])
+
                 # get timestamp of current image
                 timestamp_curr = self.get_timestamp_from_file_name(files[idx][0])
 
@@ -105,9 +122,16 @@ class LoadData(object):
                 # check if the elapsed time is plausible
                 if delta < 0:
                     print('Implausible timestamp. Image happened in the past (before the previous one). Skip sequence')
+                    # Use start_idx as this will be the reference filename that will be appended to start_sequence_file
+                    print(files[start_idx][0])
+                    remove_implausible_list.append(files[start_idx][0])
+                    print("")
+
                     # set the current IDX as the start point for the next sequence
                     start_idx = idx
                     sequence_complete = False
+
+                    #y = np.delete(y, 1, 0)
                     # drop current sequence since the images are not consecutive
                     break
 
@@ -155,30 +179,62 @@ class LoadData(object):
             sequence = np.zeros(shape=(1, image_sequence_length, self.image_height,
                                        self.image_width, self.image_channels))
 
+        #print("start_sequence_file")
+        #print(start_sequence_file)
+        #print("remove_implausible_list")
+        #print(remove_implausible_list)
+        # list comprehension to remove items from one list using another
+        if remove_implausible_list != []:
+            print("removing")
+            final_sequence_file = [x for x in start_sequence_file if x not in remove_implausible_list]
+        else:
+            final_sequence_file = start_sequence_file
+        #print("final_sequence_file")
+        #print(final_sequence_file)
+
+        # Any filenames left over that do not correspond with this list must be dropped
+        # to insure dimensionality is correct
+        #print(df_y.head())
+        #print(df_y.shape[0])
+        df_y = df_y[df_y['image'].isin(final_sequence_file)]
+        #print(df_y.shape[0])
+        y = df_y.iloc[:, 1:].to_numpy()
+        #print(y.shape[0])
+        #print(y)
+        # Test
+        if(sequences.shape[0] != y.shape[0]):
+            print("Error: the sequence length of image sequences does not match our trajectory instances")
+            print("   Source path     " + source_dir_path_complete)
+            print("   Sequence dim.   " + str(sequences.shape[0])+' '+str(sequences.shape[1]))
+            print("   Trajectory dim. " + str(y.shape[0])+' '+str(y.shape[1]))
+            print(" ")
+            sys.exit()
         return sequences, y
 
     def load_lstm_data(self, folder):
         class_idx = 0
 
-        # ************************************************************** #
-        # FS: 13/07/2021
 
-        self.Y_train, self.Y_test, self.Y_valid = LoadTraj.getTraj()
-        print("...trajectory information Loaded")
-        #print(self.Y_train)
-
-        # ************************************************************** #
 
         for directories in os.listdir(self.data_path + '/' + folder + '/'):
             dir = os.path.join("", directories)
             f = self.data_path + '/' + folder + '/' + dir
             print('Training class : ', dir)
 
-            # get all the files from the sub-folders (SORT BY DATE)
+            # 07/16/2021 FS: The original code here is very poor - GridSim does not seem to save sequentially, for example the files are saved as
+            #     ('250_image.png', 1626267753.6708562), ('0_image.png', 1626267753.6728625), ('1_image.png', 1626267753.67582), ('2_image.png', 1626267753.6778226)
+            #     Here image 250_image.png was saved before 0_image.png ( potentially there is some code in Grid Sim that saves and exits these but is -1 indexed)
+            #     As such this makes the code very buggy when creating sequences. Will need to sort instead based on name prefix (since files are named iteratively and sequentially).
+            #           Original:   key=lambda item: item[1]
+            #           New:        key=lambda item: np.argsort(index_natsorted(item[0]))
+            #     This may be reverted if data source does not follow file name saving convention
             d = {}
             for item in os.listdir(f):
                 d[item] = os.path.getctime(f + '/' + item)
-            files = sorted(d.items(), key=lambda item: item[1])
+            files = sorted(d.items(), key=lambda item: int(item[0].split('_')[0]))
+            # And fixing...
+            print("files")
+            #print(files)
 
             nr_of_found_samples = len(files)
             print('Found :', nr_of_found_samples)
@@ -192,7 +248,6 @@ class LoadData(object):
             elif folder == 'validation':
                 self.X_valid, self.Y_valid = self.get_input_sequences(self.X_valid, self.Y_valid,
                                                                       class_idx, f + '/', files)
-
             class_idx += 1
 
     def load_dgn_data(self, folder):
@@ -273,8 +328,36 @@ class LoadData(object):
         print("Y_train after init: ", self.Y_train.shape[1])
 
         folders = {'training', 'validation', 'testing'}
+
+        # ************************************************************** #
+        # FS: 13/07/2021
+
+        self.Y_train, self.Y_test, self.Y_valid = LoadTraj.getTraj()
+        print(" ")
+        print("Trajectory information Loaded (pre-processing)")
+        print("-----------------------------")
+        print("   Training sequence dim.     " + str(self.Y_train.shape[0])+' '+str(self.Y_train.shape[1]))
+        print("   Test sequence dim.         " + str(self.Y_test.shape[0])+' '+str(self.Y_test.shape[1]))
+        print("   Validation sequence dim.   " + str(self.Y_valid.shape[0])+' '+str(self.Y_valid.shape[1]))
+        print(" ")
+
+        # ************************************************************** #
+
         for f in folders:
             self.load[self.type](f)
+
+        self.Y_train = self.Y_train.astype(float)
+        self.Y_test = self.Y_test.astype(float)
+        self.Y_valid = self.Y_valid.astype(float)
+        print("Trajectory information Loaded (post-processing)")
+        print("-----------------------------")
+        print("   Training sequence dim.     " + str(self.Y_train.shape[0])+' '+str(self.Y_train.shape[1]))
+        print("   Training seq. data type    " + str(self.Y_train.dtype))
+        print("   Test Sequence dim.         " + str(self.Y_test.shape[0])+' '+str(self.Y_test.shape[1]))
+        print("   Test seq. data type        " + str(self.Y_test.dtype))
+        print("   Validation Sequence dim.   " + str(self.Y_valid.shape[0])+' '+str(self.Y_valid.shape[1]))
+        print("   Validation seq. data type  " + str(self.Y_valid.dtype))
+        print(" ")
 
         self.data_was_loaded = True
         self.save_processed_data()

@@ -7,6 +7,7 @@ import csv
 import datetime
 import time
 import logging
+import sys
 
 
 class GeneticAlgorithm:
@@ -15,8 +16,8 @@ class GeneticAlgorithm:
         self.data_set = data_set
         self.params = params
         self.model = model
-        self.population = 20
-        self.generations = 8
+        self.population = 10
+        self.generations = 5
 
         self.create_dirs()
 
@@ -80,6 +81,9 @@ class GeneticAlgorithm:
 
             # Train and get accuracy for networks/genomes.
             self.train_genomes(genomes, writer)
+
+            #print("completed 1st gen")
+            #sys.exit()
 
             # Get the average accuracy for this generation.
             average_accuracy = self.get_average_accuracy(genomes)
