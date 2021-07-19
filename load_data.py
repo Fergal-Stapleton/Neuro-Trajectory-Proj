@@ -31,6 +31,11 @@ class LoadData(object):
         self.Y_valid = None
         self.X_test = None
         self.Y_test = None
+        # Obj. Likely only need Obj_validationm
+        self.Obj_train = None
+        self.Obj_test = None
+        self.Obj_validation  = None
+
 
         self.load = {"dgn": self.load_dgn_data,
                      "conv3d": self.load_conv3d_data,
@@ -331,7 +336,7 @@ class LoadData(object):
 
         # ************************************************************** #
         # FS: 13/07/2021
-
+        # Y_train, Y_test, Y_validation, Obj_train, Obj_test, Obj_validation
         self.Y_train, self.Y_test, self.Y_valid = LoadTraj.getTraj()
         print(" ")
         print("Trajectory information Loaded (pre-processing)")
@@ -349,6 +354,16 @@ class LoadData(object):
         self.Y_train = self.Y_train.astype(float)
         self.Y_test = self.Y_test.astype(float)
         self.Y_valid = self.Y_valid.astype(float)
+
+        # Ensure our y data is a sequence ahead e.g t + tau and our images are a sequence behind t - tau
+        # We do this by slicing last row of our X data and first row of our Y data
+        self.X_train = self.X_train[:-1, :]
+        self.Y_train = self.Y_train[1:, :]
+        self.X_test = self.X_test[:-1, :]
+        self.Y_test = self.Y_test[1:, :]
+        self.X_valid = self.X_valid[:-1, :]
+        self.Y_valid = self.Y_valid[1:, :]
+
         print("Trajectory information Loaded (post-processing)")
         print("-----------------------------")
         print("   Training sequence dim.     " + str(self.Y_train.shape[0])+' '+str(self.Y_train.shape[1]))

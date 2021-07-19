@@ -133,6 +133,18 @@ class Genome():
                   callbacks=[early_stopper, history])
 
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
+        prediction = model.predict(dataset.X_test)
+
+        # TEST here
+        # TODO hardcoding image_sequence_length, this needs to be fixed
+        # original code also has this hardcoded in load_data.py
+        image_sequence_length = 3
+        print(prediction)
+        l1 = l1_objective(prediction, image_sequence_length)
+        l2 = l2_objective(prediction, image_sequence_length)
+        l3 = l3_objective(prediction, image_sequence_length)
+        L = [l1, l2, l3]
+        print(L)
         K.clear_session()
         # we do not care about keeping any of this in memory -
         # we just need to know the final scores and the architecture
@@ -174,3 +186,80 @@ class Genome():
         nb_neurons[i] = self.geneparam['nb_neurons_' + str(i+1)]
 
       return nb_neurons
+
+
+# Eqn 3. NeuroTrajectory distance-based feedback
+def l1_objective(p, image_sequence_length):
+    """
+    Calculate Eqn 3. NeuroTrajectory distance-based feedback
+    :params: Numpy array of input data
+    :return: list, each element is the distance-based feedback corresponding to the ith sequence of OGs
+    """
+    l1 = 0.0
+    dest_list = []
+    for i in range(p.shape[0]):
+        temp = 0.0
+        flag = 1
+        if flag == 1:
+            # Since our start point is implicitly always [0.0, 0.0]
+            temp += np.sqrt((p[i][1] - 0.0)**2 + (p[i][0] - 0.0)**2)
+            flag = 0
+        # these go up by 2
+        for j in range(2,(image_sequence_length-1)*2 -1):
+            x2 = p[i][j + 1] # starts at 3
+            x1 = p[i][j - 1] # starts at 1
+            y2 = p[i][j + 0] # starts at 2
+            y1 = p[i][j - 2] # starts at 0
+            temp += np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+        dest_list.append(temp/image_sequence_length)
+    l1 = sum(dest_list)/p.shape[0]
+    return l1
+
+def l2_objective(p, image_sequence_length):
+    """
+    Calculate Eqn 4. NeuroTrajectory lateral velocity
+    :params: Numpy array of input data
+    :return: list, each element is the lateral velocity corresponding to the ith sequence of OGs
+    """
+    # Calculate velocity as rate of change in position across fixed sequence length
+    l2 = 0.0
+    vd = []
+    for i in range(p.shape[0]):
+        temp = 0.0
+        flag = 1
+        if flag == 1:
+            # Since our start point is implicitly always [0.0, 0.0]
+            temp += np.abs(p[i][0] - 0.0)
+            flag = 0
+        # these go up by 2
+        for j in range(2,(image_sequence_length-1)*2 -1):
+            temp += np.abs(p[i][j] - p[i][j - 2])
+        vd.append(temp/image_sequence_length)
+    l2 = sum(vd)/p.shape[0]
+    return l2
+
+def l3_objective(p, image_sequence_length):
+    """
+    Calculate Eqn 5. NeuroTrajectory longtitudinal velocity
+    :params: Numpy array of input data
+    :return: list, each element is the longtitudinal velocity corresponding to the ith sequence of OGs
+    """
+    # Calculate velocity as rate of change in position across fixed sequence length
+    l3 = 0.0
+    vf = []
+    for i in range(p.shape[0]):
+        temp = 0.0
+        flag = 1
+        if flag == 1:
+            # Since our start point is implicitly always [0.0, 0.0]
+            temp += np.abs(p[i][1] - 0.0)
+            flag = 0
+        # these go up by 2
+        for j in range(2,(image_sequence_length-1)*2 -1):
+            print(p[i][j + 1])
+            print(p[i][j - 1])
+            temp += np.abs(p[i][j + 1] - p[i][j - 1])
+        vf.append(temp/image_sequence_length)
+    print(vf)
+    l3 = sum(vf)/p.shape[0]
+    return l3

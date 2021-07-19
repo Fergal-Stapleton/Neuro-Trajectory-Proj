@@ -41,30 +41,30 @@ class LoadTraj:
                 print("Training df shape:"+str(df_training.shape))
                 df_training = df_training.sort_values(by="ImageName", key=lambda x: np.argsort(index_natsorted(df_training["ImageName"])))
                 p = df_training.to_numpy()
-                l1 = l1_objective(p, seq_len)
-                l2 = l2_objective(p, seq_len)
-                l3 = l3_objective(p, seq_len)
-                Obj_train = np.column_stack((l1, l2, l3))
+                #l1 = l1_objective(p, seq_len)
+                #l2 = l2_objective(p, seq_len)
+                #l3 = l3_objective(p, seq_len)
+                #Obj_train = np.column_stack((l1, l2, l3))
                 Y_train = np.array(trajectory(p, seq_len))
             elif folder == "testing":
                 df_testing = df.loc[df.index[index_list]]
                 print("Testing df shape:"+str(df_testing.shape))
                 df_testing = df_testing.sort_values(by="ImageName", key=lambda x: np.argsort(index_natsorted(df_testing["ImageName"])))
                 p = df_testing.to_numpy()
-                l1 = l1_objective(p, seq_len)
-                l2 = l2_objective(p, seq_len)
-                l3 = l3_objective(p, seq_len)
-                Obj_test = np.column_stack((l1, l2, l3))
+                #l1 = l1_objective(p, seq_len)
+                #l2 = l2_objective(p, seq_len)
+                #l3 = l3_objective(p, seq_len)
+                #Obj_test = np.column_stack((l1, l2, l3))
                 Y_test = np.array( trajectory(p, seq_len))
             elif folder == "validation":
                 df_validation = df.loc[df.index[index_list]]
                 print("Validation df shape:"+str(df_validation.shape))
                 df_validation = df_validation.sort_values(by="ImageName", key=lambda x: np.argsort(index_natsorted(df_validation["ImageName"])))
                 p = df_validation.to_numpy()
-                l1 = l1_objective(p, seq_len)
-                l2 = l2_objective(p, seq_len)
-                l3 = l3_objective(p, seq_len)
-                Obj_validation = np.column_stack((l1, l2, l3))
+                #l1 = l1_objective(p, seq_len)
+                #l2 = l2_objective(p, seq_len)
+                #l3 = l3_objective(p, seq_len)
+                #Obj_validation = np.column_stack((l1, l2, l3))
                 Y_validation = np.array(trajectory(p, seq_len))
             else:
                 print("folder does not exist in list of folders, required list: " + folder)
@@ -97,60 +97,60 @@ def trajectory(p, seq_len):
         traj.append(coord)
     return traj
 
-
-# Eqn 3. NeuroTrajectory distance-based feedback
-def l1_objective(p, seq_len):
-    """
-    Calculate Eqn 3. NeuroTrajectory distance-based feedback
-    :params: Numpy array of input data
-    :return: list, each element is the distance-based feedback corresponding to the ith sequence of OGs
-    """
-    l1 = []
-    for i in range(math.floor(len(p)/seq_len)):
-        j = seq_len * i
-        temp=0.0
-        for k in range(seq_len):
-            x2 = p[j+k][0]
-            x1 = p[j+(seq_len-1)][0]
-            y2 = p[j+k][1]
-            y1 = p[j+(seq_len-1)][1]
-            temp += np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-        l1.append(temp)
-    return l1
-
-def l2_objective(p, seq_len):
-    """
-    Calculate Eqn 4. NeuroTrajectory lateral velocity
-    :params: Numpy array of input data
-    :return: list, each element is the lateral velocity corresponding to the ith sequence of OGs
-    """
-    l2 = []
-    # Calculate velocity as rate of change in position across fixed sequence length
-    for i in range(math.floor(len(p)/seq_len)):
-        j = seq_len * i
-        vd = 0.0
-        for k in range(seq_len):
-            # diff between each sequence
-            vd += np.abs(p[j+k+1][0] - p[j+k][0])/seq_len
-        l2.append(vd)
-    return l2
-
-def l3_objective(p, seq_len):
-    """
-    Calculate Eqn 5. NeuroTrajectory longtitudinal velocity
-    :params: Numpy array of input data
-    :return: list, each element is the longtitudinal velocity corresponding to the ith sequence of OGs
-    """
-    l3 = []
-    # Calculate velocity as rate of change in position across fixed sequence length
-    for i in range(math.floor(len(p)/seq_len)):
-        j = seq_len * i
-        vf = 0.0
-        for k in range(seq_len):
-            # diff between each sequence
-            vf += np.abs(p[j+k+1][1] - p[j+k][1])/seq_len
-        l3.append(vf)
-    return l3
+#
+# # Eqn 3. NeuroTrajectory distance-based feedback
+# def l1_objective(p, seq_len):
+#     """
+#     Calculate Eqn 3. NeuroTrajectory distance-based feedback
+#     :params: Numpy array of input data
+#     :return: list, each element is the distance-based feedback corresponding to the ith sequence of OGs
+#     """
+#     l1 = []
+#     for i in range(math.floor(len(p)/seq_len)):
+#         j = seq_len * i
+#         temp=0.0
+#         for k in range(seq_len):
+#             x2 = p[j+k][0]
+#             x1 = p[j+(seq_len-1)][0]
+#             y2 = p[j+k][1]
+#             y1 = p[j+(seq_len-1)][1]
+#             temp += np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+#         l1.append(temp)
+#     return l1
+#
+# def l2_objective(p, seq_len):
+#     """
+#     Calculate Eqn 4. NeuroTrajectory lateral velocity
+#     :params: Numpy array of input data
+#     :return: list, each element is the lateral velocity corresponding to the ith sequence of OGs
+#     """
+#     l2 = []
+#     # Calculate velocity as rate of change in position across fixed sequence length
+#     for i in range(math.floor(len(p)/seq_len)):
+#         j = seq_len * i
+#         vd = 0.0
+#         for k in range(seq_len):
+#             # diff between each sequence
+#             vd += np.abs(p[j+k+1][0] - p[j+k][0])/seq_len
+#         l2.append(vd)
+#     return l2
+#
+# def l3_objective(p, seq_len):
+#     """
+#     Calculate Eqn 5. NeuroTrajectory longtitudinal velocity
+#     :params: Numpy array of input data
+#     :return: list, each element is the longtitudinal velocity corresponding to the ith sequence of OGs
+#     """
+#     l3 = []
+#     # Calculate velocity as rate of change in position across fixed sequence length
+#     for i in range(math.floor(len(p)/seq_len)):
+#         j = seq_len * i
+#         vf = 0.0
+#         for k in range(seq_len):
+#             # diff between each sequence
+#             vf += np.abs(p[j+k+1][1] - p[j+k][1])/seq_len
+#         l3.append(vf)
+#     return l3
 
 
 # Pareto dominance code taken from:

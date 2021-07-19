@@ -17,7 +17,7 @@ class GeneticAlgorithm:
         self.params = params
         self.model = model
         self.population = 10
-        self.generations = 5
+        self.generations = 3
 
         self.create_dirs()
 
@@ -38,6 +38,7 @@ class GeneticAlgorithm:
         pbar = tqdm(total=len(genomes))
 
         for genome in genomes:
+            # FS: going to get objectives out here
             genome.train(self.model, self.data_set, self.path)
 
             parameters = list()
