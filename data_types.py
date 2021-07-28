@@ -33,7 +33,7 @@ PARAMETERS_LSTM = {'hidden_units': [8, 16, 32, 64],
                    'dropout_parameter': [0.2, 0.25, 0.3, 0.35, 0.4, 0.5],
                    'batch_size': [8, 16, 24, 32],
                    'epochs': [10, 20, 30, 40, 50],
-                   'loss_function': ['mean_squared_error', 'mean_absolute_error'],
+                   'loss_function': ['mean_squared_error', 'categorical_crossentropy'],
                    'optimizer': ['rmsprop', 'nadam', 'sgd', 'adagrad', 'adadelta', 'adam', 'adamax'],
                    'lstm_cells':[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
                    }

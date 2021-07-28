@@ -16,8 +16,8 @@ class GeneticAlgorithm:
         self.data_set = data_set
         self.params = params
         self.model = model
-        self.population = 10
-        self.generations = 3
+        self.population = 20
+        self.generations = 10
 
         self.create_dirs()
 
@@ -33,13 +33,13 @@ class GeneticAlgorithm:
         print("***Evolving for %d generations with population size = %d***" % (self.generations, self.population))
         self.generate()
 
-    def train_genomes(self, genomes, writer):
+    def train_genomes(self, genomes, writer, i):
         logging.info("***train_networks(networks, dataset)***")
         pbar = tqdm(total=len(genomes))
 
         for genome in genomes:
             # FS: going to get objectives out here
-            genome.train(self.model, self.data_set, self.path)
+            genome.train(self.model, self.data_set, self.path, i)
 
             parameters = list()
             params_csv = list()
@@ -48,7 +48,11 @@ class GeneticAlgorithm:
                 parameters.append(genome.geneparam[p])
                 params_csv.append(str(genome.geneparam[p]))
 
+            params_csv.append(str(i+1))
             params_csv.append(genome.accuracy)
+            params_csv.append(genome.fitness_vector[0])
+            params_csv.append(genome.fitness_vector[1])
+            params_csv.append(genome.fitness_vector[2])
             row = params_csv
             writer.writerow(row)
             pbar.update(1)
@@ -64,14 +68,18 @@ class GeneticAlgorithm:
         genomes = evolver.create_population(self.population)
 
         print(" ...opening result.csv")
-        ofile = open(self.path + '/result.csv', "w")
+        ofile = open(self.path + '/result.csv', "w", newline='')
         writer = csv.writer(ofile, delimiter=',')
 
         table_head = list()
         for p in self.params:
              table_head.append(str(p))
 
+        table_head.append("Gen")
         table_head.append("accuracy")
+        table_head.append("obj1")
+        table_head.append("obj2")
+        table_head.append("obj3")
         row = table_head
         writer.writerow(row)
 
@@ -81,7 +89,7 @@ class GeneticAlgorithm:
             self.print_genomes(genomes)
 
             # Train and get accuracy for networks/genomes.
-            self.train_genomes(genomes, writer)
+            self.train_genomes(genomes, writer, i)
 
             #print("completed 1st gen")
             #sys.exit()
@@ -99,6 +107,8 @@ class GeneticAlgorithm:
 
         # Sort our final population according to performance.
         genomes = sorted(genomes, key=lambda x: x.accuracy, reverse=True)
+
+        # FS - Print out fitness vector here
 
         # Print out the top 5 networks/genomes.
         self.print_genomes(genomes[:5])

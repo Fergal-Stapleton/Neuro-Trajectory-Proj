@@ -15,6 +15,9 @@ from operator import add
 from genome import Genome
 from idgen import IDgen
 from allgenomes import AllGenomes
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 
 class Evolver():
@@ -39,7 +42,7 @@ class Evolver():
 
         #set the ID gen
         self.ids = IDgen()
-        
+
     def create_population(self, count):
         """Create a population of random networks.
 
@@ -85,6 +88,11 @@ class Evolver():
         """Return the accuracy, which is our fitness function."""
         return genome.accuracy
 
+    @staticmethod
+    def fitnessMO(genome):
+        """Return the accuracy, which is our fitness function."""
+        return genome.fitness_vector
+
     def grade(self, pop):
         """Find average fitness for a population.
 
@@ -113,7 +121,7 @@ class Evolver():
 
         #where do we recombine? 0, 1, 2, 3, 4... N?
         #with four genes, there are three choices for the recombination
-        # ___ * ___ * ___ * ___ 
+        # ___ * ___ * ___ * ___
         #0 -> no recombination, and N == length of dictionary -> no recombination
         #0 and 4 just (re)create more copies of the parents
         #so the range is always 1 to len(all_possible_genes) - 1
@@ -145,10 +153,10 @@ class Evolver():
 
         #at this point, there is zero guarantee that the genome is actually unique
         # Randomly mutate one gene
-        if self.mutate_chance > random.random(): 
+        if self.mutate_chance > random.random():
             genome1.mutate_one_gene()
 
-        if self.mutate_chance > random.random(): 
+        if self.mutate_chance > random.random():
                 genome2.mutate_one_gene()
 
         #do we have a unique child or are we just retraining one we already have anyway?
@@ -156,12 +164,12 @@ class Evolver():
             genome1.mutate_one_gene()
 
         self.master.add_genome(genome1)
-        
+
         while self.master.is_duplicate(genome2):
             genome2.mutate_one_gene()
 
         self.master.add_genome(genome2)
-        
+
         children.append(genome1)
         children.append(genome2)
 
@@ -177,18 +185,67 @@ class Evolver():
             (list): The evolved population of networks
 
         """
-        #increase generation 
+        #increase generation
         self.ids.increase_Gen()
 
         # Get scores for each genome
         graded = [(self.fitness(genome), genome) for genome in pop]
+        solutionsTuple = [(self.fitnessMO(genome), genome) for genome in pop]
+        #print(solutionsTuple)
+        solutions = [x[0] for x in solutionsTuple]
+        genome_hash = [x[1] for x in solutionsTuple]
+        acc = [x[0] for x in graded]
+        obj1 = []
+        obj2 = []
+        obj3 = []
+        accVec = []
+        hash = []
+        for i in range(len(solutions)):
+            obj1.append(solutions[i][0])
+            obj2.append(solutions[i][1])
+            obj3.append(solutions[i][2])
+            accVec.append(acc[i])
+            hash.append(genome_hash[i])
+
+        #print(np.column_stack((np.array(obj1), np.array(obj2), np.array(obj3), np.array(acc))))
+        #costs = np.column_stack((np.array(obj1), np.array(obj2)))
+        costs = np.column_stack((np.array(obj1), np.array(obj2), np.array(obj3)))
+        #print(costs)
+
+        bool_non_dom_sol_df = is_pareto_efficient_simple(costs)
+
+        df = pd.DataFrame(costs, columns=['obj1', 'obj2', 'obj3'])
+        df['hash'] = hash
+        df['non_dominated'] = bool_non_dom_sol_df
+
+        #non_dom_df = costs[bool_non_dom_sol_df,:]
+        #print(bool_non_dom_sol_df)
+        #print(df)
+        df = df.sort_values('non_dominated', ascending=False)
+
+        #print(df)
+
+        #plt.scatter(obj1, obj2)
+        #plt.show()
+        #plt.scatter(df['obj1'], df['obj2'])
+        #plt.show()
 
         #and use those scores to fill in the master list
         for genome in pop:
             self.master.set_accuracy(genome)
 
         # Sort on the scores.
-        graded = [x[1] for x in sorted(graded, key=lambda x: x[0], reverse=True)]
+        # FS: This is where we use Pareto Dominance instead of ACC
+        #     We will use a sort to find which networks have the most desirable fitness
+
+        # for fitness vector
+        graded = df['hash'].to_list()
+        # for accuracy
+        #graded = [x[1] for x in sorted(graded, key=lambda x: x[0], reverse=True)]
+
+        #print(graded2)
+        #print(graded)
+        #sys.exit(0)
 
         # Get the number we want to keep unchanged for the next cycle.
         retain_length = int(len(graded)*self.retain)
@@ -203,14 +260,14 @@ class Evolver():
         for genome in graded[retain_length:]:
             if self.random_select > random.random():
                 gtc = copy.deepcopy(genome)
-                
+
                 while self.master.is_duplicate(gtc):
                     gtc.mutate_one_gene()
 
                 gtc.set_generation( self.ids.get_Gen() )
                 new_generation.append(gtc)
                 self.master.add_genome(gtc)
-        
+
         # Now find out how many spots we have left to fill.
         ng_length = len(new_generation)
         desired_length = len(pop) - ng_length
@@ -221,7 +278,7 @@ class Evolver():
             # Get a random mom and dad, but, need to make sure they are distinct
             print(ng_length)
             parents = random.sample(range(ng_length-1), k=2)
-            
+
             i_male = parents[0]
             i_female = parents[1]
 
@@ -239,3 +296,18 @@ class Evolver():
         new_generation.extend(children)
 
         return new_generation
+
+# Pareto dominance code taken from:
+# https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
+def is_pareto_efficient_simple(costs):
+    """
+    Find the pareto-efficient points
+    :params: An (n_points, n_costs) array
+    :return: A (n_points, ) boolean array, indicating whether each point is Pareto efficient
+    """
+    is_efficient = np.ones(costs.shape[0], dtype = bool)
+    for i, c in enumerate(costs):
+        if is_efficient[i]:
+            is_efficient[is_efficient] = np.any(costs[is_efficient]<c, axis=1)  # Keep any point with a lower cost
+            is_efficient[i] = True  # And keep self
+    return is_efficient

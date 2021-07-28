@@ -9,7 +9,8 @@ from natsort import index_natsorted
 #TODO need to arrange code in functions and classes
 
 class LoadTraj:
-    def getTraj():
+
+    def getTraj(number_of_classes):
         df = pd.read_csv("images/state_buf.txt", sep='\t')
         #print(df.shape[0])
         #print(df.head())
@@ -22,6 +23,7 @@ class LoadTraj:
         folder_list = ["training", "testing", "validation"]
 
         for folder in folder_list:
+            df = pd.read_csv("images/state_buf.txt", sep='\t')
             #print(folder)
             mypath = "images_splited/"+folder+"/image"
 
@@ -29,12 +31,13 @@ class LoadTraj:
             filenames = next(walk(mypath), (None, None, []))[2]
             index_list = []
             #print(df.index[344])
-            seq_len = 3
+            seq_len = int((number_of_classes + 2) /2)
 
             for filename in filenames:
                 end_of_timestamp_index = filename.find('_')
                 timestamp = int(filename[:end_of_timestamp_index])
-                index_list.append(timestamp)
+                # TODO need a way to find lowest id in folder
+                index_list.append(timestamp - 40)
 
             if folder == "training":
                 df_training = df.loc[df.index[index_list]]

@@ -10,13 +10,15 @@ if not sys.warnoptions:
 
 
 class TrainingHistoryPlot(keras.callbacks.Callback):
-    def __init__(self, path, data_set, parameters):
+    def __init__(self, path, data_set, parameters, i):
         self.path = path
         self.data_set = data_set
         self.losses = []
         self.val_acc = []
         self.val_losses = []
         self.acc = []
+        self.gen = i + 1
+
 
         self.file_name = ''
         for p in parameters:
@@ -27,6 +29,7 @@ class TrainingHistoryPlot(keras.callbacks.Callback):
         self.val_acc = []
         self.val_losses = []
         self.acc = []
+        #self.gen = i + 1
 
     def on_train_end(self, logs={}):
         nr = len(self.losses)
@@ -45,7 +48,7 @@ class TrainingHistoryPlot(keras.callbacks.Callback):
         plt.savefig(file_name)
         plt.close()
 
-        self.model.save(self.path + '/models/model_' + self.file_name + '.h5')
+        self.model.save(self.path + '/models/model_' + self.file_name + '_gen_' + str(self.gen) + '.h5')
         #conf_matrix = ConfusionMatrix(self.path, self.file_name, self.data_set, self.model)
         #conf_matrix.run()
 

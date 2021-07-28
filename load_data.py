@@ -65,13 +65,21 @@ class LoadData(object):
         max_timestamp_delta = 300000  # [microseconds]
         sequences_counter = 0
         selected_sequences_per_class = 4500
-        image_sequence_length = 3
+        image_sequence_length = int((self.number_of_classes + 2) /2)
         slide = False
         # Will convert y data to pandas as it is easier to do comparisons
-        df_y = pd.DataFrame(y,  columns=['image','x1', 'y1', 'x2', 'y2'])
+        colList = []
+        colList.append('image')
+        print(image_sequence_length)
+        for i in range(0,image_sequence_length-1):
+            colList.append('x'+str(i+1))
+            colList.append('y'+str(i+1))
+
+        print(colList)
+        df_y = pd.DataFrame(y,  columns=colList)
         df_y = df_y.sort_values(by="image", key=lambda x: np.argsort(index_natsorted(df_y["image"])))
         df_y = df_y.reset_index(drop=True)
-        #print(df_y.head())
+        print(df_y.head())
 
         # We should have a filename which correponds to the start of each image sequence
         # Any filenames left over that do not correspond with this list must be dropped
@@ -311,7 +319,7 @@ class LoadData(object):
 
     def load_new_data(self):
         print(self.data_path)
-        self.number_of_classes = len(next(os.walk(self.data_path + '/training/'))[1])
+        #self.number_of_classes = len(next(os.walk(self.data_path + '/training/'))[1])
         print('Number of classes found : ', self.number_of_classes)
         print('Model type : ',self.type)
         # FS: 'is' is not correct, changing to '=='. 'is' should only be used to check objects are the same
@@ -337,7 +345,7 @@ class LoadData(object):
         # ************************************************************** #
         # FS: 13/07/2021
         # Y_train, Y_test, Y_validation, Obj_train, Obj_test, Obj_validation
-        self.Y_train, self.Y_test, self.Y_valid = LoadTraj.getTraj()
+        self.Y_train, self.Y_test, self.Y_valid = LoadTraj.getTraj(self.number_of_classes)
         print(" ")
         print("Trajectory information Loaded (pre-processing)")
         print("-----------------------------")
@@ -363,6 +371,9 @@ class LoadData(object):
         self.Y_test = self.Y_test[1:, :]
         self.X_valid = self.X_valid[:-1, :]
         self.Y_valid = self.Y_valid[1:, :]
+
+        pd.DataFrame(self.Y_train).to_csv("Y_train")
+        pd.DataFrame(self.Y_valid).to_csv("Y_valid")
 
         print("Trajectory information Loaded (post-processing)")
         print("-----------------------------")

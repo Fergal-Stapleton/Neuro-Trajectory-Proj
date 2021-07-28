@@ -20,6 +20,7 @@ class Genome():
             all_possible_genes (dict): Parameters for the genome
         """
         self.accuracy = 0.0
+        self.fitness_vector = [0.0, 0.0, 0.0]
         self.all_possible_genes = all_possible_genes
 
         # (dict): represents actual genome parameters
@@ -93,13 +94,14 @@ class Genome():
         self.geneparam = geneparam
         self.update_hash()
 
-    def train_and_score(self, model_train, dataset, path):
+    def train_and_score(self, model_train, dataset, path, i):
         logging.info("Getting training samples")
         logging.info("Compling Keras model")
 
         batch_size = self.geneparam['batch_size']
         epochs = self.geneparam['epochs']
 
+        image_sequence_length = int((dataset.number_of_classes + 2) /2)
         parameters = list()
 
         for p in self.all_possible_genes:
@@ -120,7 +122,7 @@ class Genome():
         early_stopper = EarlyStopping(monitor='val_loss', min_delta=0.1, patience=5, verbose=0, mode='auto')
         # FS: 18/07/2021: This is problematic as it is set up for classification
         #                 I will comment out line 49 and 50 from training_history_plot
-        history = TrainingHistoryPlot(path, dataset, parameters)
+        history = TrainingHistoryPlot(path, dataset, parameters, i)
         print("Y_train [0] just before fit: " + str(dataset.Y_train.shape[0]))
         print("Y_train [1] just before fit: " + str(dataset.Y_train.shape[1]))
         print("Y_valid [0] just before fit: " + str(dataset.Y_valid.shape[0]))
@@ -134,33 +136,56 @@ class Genome():
 
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
         prediction = model.predict(dataset.X_test)
+        #print(prediction.shape)
+        print(prediction)
+        print(dataset.Y_train)
+        real = dataset.Y_train
+
+        pred_acc = self.rmse(prediction, real, image_sequence_length)
 
         # TEST here
         # TODO hardcoding image_sequence_length, this needs to be fixed
         # original code also has this hardcoded in load_data.py
-        image_sequence_length = 3
-        print(prediction)
+
+
         l1 = l1_objective(prediction, image_sequence_length)
         l2 = l2_objective(prediction, image_sequence_length)
         l3 = l3_objective(prediction, image_sequence_length)
         L = [l1, l2, l3]
         print(L)
+        print(pred_acc)
         K.clear_session()
         # we do not care about keeping any of this in memory -
         # we just need to know the final scores and the architecture
 
         # 1 is accuracy. 0 is loss.
-        return score[1]
+        return pred_acc, L
 
-    def train(self, model, trainingset, path):
+    def rmse(self, pred, Y_train, image_sequence_length):
+        acc_list = []
+        x_tau = (image_sequence_length-1)*2 -1
+        for i in range(pred.shape[0]):
+            temp = 0.0
+            for j in range(2, x_tau):
+                P_hat_x = pred[i][j - 1] # starts at 1
+                P_hat_y = pred[i][j - 2] # starts at 0
+                P_x = Y_train[i][j - 1]
+                P_y = Y_train[i][j - 2]
+                temp += np.sqrt((P_hat_x  - P_x)**2 + (P_hat_y - P_y)**2)
+            acc_list.append(temp/image_sequence_length)
+        pred_acc = sum(acc_list)/pred.shape[0]
+        return pred_acc
+
+    def train(self, model, trainingset, path, i):
         #don't bother retraining ones we already trained
         if self.accuracy == 0.0:
-            self.accuracy = self.train_and_score(model, trainingset, path)
+            self.accuracy, self.fitness_vector = self.train_and_score(model, trainingset, path, i)
 
     def print_genome(self):
         """Print out a genome."""
         self.print_geneparam()
         logging.info("Acc: %.2f%%" % (self.accuracy * 100))
+        logging.info("Fitness Vector: %d %d %d" % (self.fitness_vector[0], self.fitness_vector[1], self.fitness_vector[2]))
         logging.info("UniID: %d" % self.u_ID)
         logging.info("Mom and Dad: %d %d" % (self.parents[0], self.parents[1]))
         logging.info("Gen: %d" % self.generation)
@@ -202,15 +227,20 @@ def l1_objective(p, image_sequence_length):
         flag = 1
         if flag == 1:
             # Since our start point is implicitly always [0.0, 0.0]
-            temp += np.sqrt((p[i][1] - 0.0)**2 + (p[i][0] - 0.0)**2)
+            # (image_sequence_length-1)*2 -1 last coordinate
+            x_tau = (image_sequence_length-1)*2 -1
+            # (image_sequence_length-1)*2 -1 Second last coordinate
+            y_tau = (image_sequence_length-1)*2 -2
+            # P_ego <t+0> - P_dest <t+tau>
+            temp += np.sqrt((p[i][x_tau] - 0.0)**2 + (p[i][y_tau] - 0.0)**2)
             flag = 0
-        # these go up by 2
-        for j in range(2,(image_sequence_length-1)*2 -1):
-            x2 = p[i][j + 1] # starts at 3
-            x1 = p[i][j - 1] # starts at 1
-            y2 = p[i][j + 0] # starts at 2
-            y1 = p[i][j - 2] # starts at 0
-            temp += np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+        # these go up by 2,  P ego <t+i> - P dest <t+tau> , where i > 0
+        for j in range(2, x_tau):
+            P_dest_x = p[i][x_tau] # starts at 3
+            P_ego_x = p[i][j - 1] # starts at 1
+            P_dest_y = p[i][y_tau] # starts at 2
+            P_ego_y = p[i][j - 2] # starts at 0
+            temp += np.sqrt((P_ego_x  - P_dest_x)**2 + (P_ego_y - P_dest_y)**2)
         dest_list.append(temp/image_sequence_length)
     l1 = sum(dest_list)/p.shape[0]
     return l1
@@ -224,6 +254,7 @@ def l2_objective(p, image_sequence_length):
     # Calculate velocity as rate of change in position across fixed sequence length
     l2 = 0.0
     vd = []
+    vector_len = (image_sequence_length-1)*2 -1
     for i in range(p.shape[0]):
         temp = 0.0
         flag = 1
@@ -232,7 +263,7 @@ def l2_objective(p, image_sequence_length):
             temp += np.abs(p[i][0] - 0.0)
             flag = 0
         # these go up by 2
-        for j in range(2,(image_sequence_length-1)*2 -1):
+        for j in range(2,vector_len):
             temp += np.abs(p[i][j] - p[i][j - 2])
         vd.append(temp/image_sequence_length)
     l2 = sum(vd)/p.shape[0]
@@ -247,6 +278,7 @@ def l3_objective(p, image_sequence_length):
     # Calculate velocity as rate of change in position across fixed sequence length
     l3 = 0.0
     vf = []
+    vector_len = (image_sequence_length-1)*2 -1
     for i in range(p.shape[0]):
         temp = 0.0
         flag = 1
@@ -255,9 +287,7 @@ def l3_objective(p, image_sequence_length):
             temp += np.abs(p[i][1] - 0.0)
             flag = 0
         # these go up by 2
-        for j in range(2,(image_sequence_length-1)*2 -1):
-            print(p[i][j + 1])
-            print(p[i][j - 1])
+        for j in range(2,vector_len):
             temp += np.abs(p[i][j + 1] - p[i][j - 1])
         vf.append(temp/image_sequence_length)
     print(vf)

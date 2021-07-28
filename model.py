@@ -292,7 +292,7 @@ def lstm_model(X_train_shape, parameters):
             model.add(Dropout(dropout_parameter))
 
 
-    model.add(Dense(DATA_SET_INFO['num_classes'], activation='relu'))
+    model.add(Dense(DATA_SET_INFO['num_classes'], activation='softmax'))
     model.compile(loss=loss_function, optimizer=optimizer, metrics=['accuracy'])
 
     print(model.summary())
