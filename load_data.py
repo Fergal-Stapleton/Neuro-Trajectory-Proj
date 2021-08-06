@@ -5,6 +5,7 @@ from PIL import Image
 from loadTraj import LoadTraj
 import sys
 from natsort import index_natsorted
+import random
 
 
 def shuffle_in_unison(a, b):
@@ -67,6 +68,7 @@ class LoadData(object):
         selected_sequences_per_class = 4500
         image_sequence_length = int((self.number_of_classes + 2) /2)
         slide = False
+        skip = False
         # Will convert y data to pandas as it is easier to do comparisons
         colList = []
         colList.append('image')
@@ -117,60 +119,84 @@ class LoadData(object):
                 timestamp_prev = self.get_timestamp_from_file_name(files[start_idx - 1][0])
 
             # Jump 3 at a time
+
+
+            temp_sequence_length = image_sequence_length
+
             for idx in range(start_idx, start_idx + image_sequence_length):
-                if(idx == start_idx):
+                if skip == True and random.randint(0,100) < 5:
+                    idx_skip = idx + 1
+                    while idx_skip < (start_idx + temp_sequence_length + 1):
+                        start_sequence_file.append(files[idx_skip][0])
+                        print(idx_skip)
+                        # increment samples in sequence counter
+                        sample_sequence_counter += 1
+
+                        # save image in the current sequence
+                        image = Image.open(source_dir_path_complete + files[idx_skip][0])
+                        image.thumbnail((self.image_width, self.image_height), Image.ANTIALIAS)
+                        image = np.asarray(image, dtype="int32")
+                        sequence[0][sample_sequence_counter - 1] = image
+
+                        # set true the sequence complete flag
+                        sequence_complete = True
+
+                        # last
+                        idx_skip = idx_skip + 1
+                else:
+                    #if(idx == start_idx):
                     #print(files[idx][0])
                     start_sequence_file.append(files[idx][0])
                     #print(df_y[df_y.index[df_y['image'] == str(files[idx][0])]])
 
-                # get timestamp of current image
-                timestamp_curr = self.get_timestamp_from_file_name(files[idx][0])
+                    # get timestamp of current image
+                    timestamp_curr = self.get_timestamp_from_file_name(files[idx][0])
 
-                # compute time elapsed since the previous image timestamp
-                delta = timestamp_curr - timestamp_prev
+                    # compute time elapsed since the previous image timestamp
+                    delta = timestamp_curr - timestamp_prev
 
-                # save current timestamp
-                timestamp_prev = timestamp_curr
+                    # save current timestamp
+                    timestamp_prev = timestamp_curr
 
-                # check if the elapsed time is plausible
-                if delta < 0:
-                    print('Implausible timestamp. Image happened in the past (before the previous one). Skip sequence')
-                    # Use start_idx as this will be the reference filename that will be appended to start_sequence_file
-                    print(files[start_idx][0])
-                    remove_implausible_list.append(files[start_idx][0])
-                    print("")
+                    # check if the elapsed time is plausible
+                    if delta < 0:
+                        print('Implausible timestamp. Image happened in the past (before the previous one). Skip sequence')
+                        # Use start_idx as this will be the reference filename that will be appended to start_sequence_file
+                        print(files[start_idx][0])
+                        remove_implausible_list.append(files[start_idx][0])
+                        print("")
 
-                    # set the current IDX as the start point for the next sequence
-                    start_idx = idx
-                    sequence_complete = False
+                        # set the current IDX as the start point for the next sequence
+                        start_idx = idx
+                        sequence_complete = False
 
-                    #y = np.delete(y, 1, 0)
-                    # drop current sequence since the images are not consecutive
-                    break
+                        #y = np.delete(y, 1, 0)
+                        # drop current sequence since the images are not consecutive
+                        break
 
-                # check if the timestamp did not jumped more than 300 ms
-                if delta > max_timestamp_delta:
-                    print('Timestamp jump. Drop current sequence')
+                    # check if the timestamp did not jumped more than 300 ms
+                    if delta > max_timestamp_delta:
+                        print('Timestamp jump. Drop current sequence')
 
-                    # set the current IDX as the start point for the next sequence
-                    start_idx = idx
-                    print('Timestamp interrupted at: ', timestamp_curr)
-                    print('Delta timestamp is : ', delta / 1000000, ' sec')
-                    sequence_complete = False
-                    # drop current sequence since the imageces are not consecutive
-                    break
+                        # set the current IDX as the start point for the next sequence
+                        start_idx = idx
+                        print('Timestamp interrupted at: ', timestamp_curr)
+                        print('Delta timestamp is : ', delta / 1000000, ' sec')
+                        sequence_complete = False
+                        # drop current sequence since the imageces are not consecutive
+                        break
 
-                # increment samples in sequence counter
-                sample_sequence_counter += 1
+                    # increment samples in sequence counter
+                    sample_sequence_counter += 1
 
-                # save image in the current sequence
-                image = Image.open(source_dir_path_complete + files[idx][0])
-                image.thumbnail((self.image_width, self.image_height), Image.ANTIALIAS)
-                image = np.asarray(image, dtype="int32")
-                sequence[0][sample_sequence_counter - 1] = image
+                    # save image in the current sequence
+                    image = Image.open(source_dir_path_complete + files[idx][0])
+                    image.thumbnail((self.image_width, self.image_height), Image.ANTIALIAS)
+                    image = np.asarray(image, dtype="int32")
+                    sequence[0][sample_sequence_counter - 1] = image
 
-                # set true the sequence complete flag
-                sequence_complete = True
+                    # set true the sequence complete flag
+                    sequence_complete = True
 
             # slide the start for the next sequence with 1 position
             if slide == True:
@@ -345,7 +371,11 @@ class LoadData(object):
         # ************************************************************** #
         # FS: 13/07/2021
         # Y_train, Y_test, Y_validation, Obj_train, Obj_test, Obj_validation
-        self.Y_train, self.Y_test, self.Y_valid = LoadTraj.getTraj(self.number_of_classes)
+        slide = False
+        shuffle = True
+        image_sequence_length = 3
+
+        self.Y_train, self.Y_test, self.Y_valid = LoadTraj.getTraj(self.number_of_classes, slide)
         print(" ")
         print("Trajectory information Loaded (pre-processing)")
         print("-----------------------------")
@@ -355,6 +385,8 @@ class LoadData(object):
         print(" ")
 
         # ************************************************************** #
+        # TEST HERE
+        # ************************************************************** #
 
         for f in folders:
             self.load[self.type](f)
@@ -363,28 +395,45 @@ class LoadData(object):
         self.Y_test = self.Y_test.astype(float)
         self.Y_valid = self.Y_valid.astype(float)
 
+
         # Ensure our y data is a sequence ahead e.g t + tau and our images are a sequence behind t - tau
         # We do this by slicing last row of our X data and first row of our Y data
-        self.X_train = self.X_train[:-1, :]
-        self.Y_train = self.Y_train[1:, :]
-        self.X_test = self.X_test[:-1, :]
-        self.Y_test = self.Y_test[1:, :]
-        self.X_valid = self.X_valid[:-1, :]
-        self.Y_valid = self.Y_valid[1:, :]
+        if slide == False:
+            self.X_train = self.X_train[:-1, :]
+            self.Y_train = self.Y_train[1:, :]
+            self.X_test = self.X_test[:-1, :]
+            self.Y_test = self.Y_test[1:, :]
+            self.X_valid = self.X_valid[:-1, :]
+            self.Y_valid = self.Y_valid[1:, :]
+        if slide == True:
+            self.X_train = self.X_train[:-image_sequence_length, :]
+            self.Y_train = self.Y_train[image_sequence_length:, :]
+            self.X_test = self.X_test[:-image_sequence_length, :]
+            self.Y_test = self.Y_test[image_sequence_length:, :]
+            self.X_valid = self.X_valid[:-image_sequence_length, :]
+            self.Y_valid = self.Y_valid[image_sequence_length:, :]
+
+        if shuffle == True:
+            self.X_train, self.Y_train = self.shuffler(self.X_train, self.Y_train)
+            self.X_test, self.Y_test = self.shuffler(self.X_test, self.Y_test)
+            self.X_valid, self.Y_valid = self.shuffler(self.X_valid, self.Y_valid)
 
         pd.DataFrame(self.Y_train).to_csv("Y_train")
         pd.DataFrame(self.Y_valid).to_csv("Y_valid")
 
         print("Trajectory information Loaded (post-processing)")
         print("-----------------------------")
-        print("   Training sequence dim.     " + str(self.Y_train.shape[0])+' '+str(self.Y_train.shape[1]))
+        print("                                 X       Y ")
+        print("   Training sequence dim.     " + str(self.X_train.shape[0])+' '+str(self.X_train.shape[1]) + '   ' + str(self.Y_train.shape[0])+' '+str(self.Y_train.shape[1]))
         print("   Training seq. data type    " + str(self.Y_train.dtype))
-        print("   Test Sequence dim.         " + str(self.Y_test.shape[0])+' '+str(self.Y_test.shape[1]))
+        print("   Test Sequence dim.         " + str(self.X_test.shape[0])+' '+str(self.X_test.shape[1]) + '   ' + str(self.Y_test.shape[0])+' '+str(self.Y_test.shape[1]))
         print("   Test seq. data type        " + str(self.Y_test.dtype))
-        print("   Validation Sequence dim.   " + str(self.Y_valid.shape[0])+' '+str(self.Y_valid.shape[1]))
+        print("   Validation Sequence dim.   " + str(self.X_valid.shape[0])+' '+str(self.X_valid.shape[1]) + '   '+ str(self.Y_valid.shape[0])+' '+str(self.Y_valid.shape[1]))
         print("   Validation seq. data type  " + str(self.Y_valid.dtype))
         print(" ")
 
+        # Early Exit for Testing purposes
+        #sys.exit()
         self.data_was_loaded = True
         self.save_processed_data()
 
@@ -425,3 +474,10 @@ class LoadData(object):
     def check_dir(path):
         if not os.path.exists(path):
             os.makedirs(path)
+
+    @staticmethod
+    def shuffler(X, Y):
+        assert len(X) == len(Y)
+        # Easier to use indexing rather than trying to re-combine dimensionally mismatched arrays
+        ix_perm = np.random.permutation(len(X))
+        return X[ix_perm], Y[ix_perm]

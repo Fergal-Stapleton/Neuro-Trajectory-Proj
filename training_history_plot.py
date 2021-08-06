@@ -1,5 +1,5 @@
 import sys
-import keras
+import tensorflow.keras
 import matplotlib.pyplot as plt
 from load_data import *
 from conf_matrix import ConfusionMatrix
@@ -9,7 +9,7 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 
-class TrainingHistoryPlot(keras.callbacks.Callback):
+class TrainingHistoryPlot(tensorflow.keras.callbacks.Callback):
     def __init__(self, path, data_set, parameters, i):
         self.path = path
         self.data_set = data_set
@@ -47,8 +47,10 @@ class TrainingHistoryPlot(keras.callbacks.Callback):
         file_name = self.path + "/plots/loss_acc_train_" + self.file_name + ".jpg"
         plt.savefig(file_name)
         plt.close()
+        #print(self)
+        
 
-        self.model.save(self.path + '/models/model_' + self.file_name + '_gen_' + str(self.gen) + '.h5')
+        #model = load_model('model.h5')
         #conf_matrix = ConfusionMatrix(self.path, self.file_name, self.data_set, self.model)
         #conf_matrix.run()
 

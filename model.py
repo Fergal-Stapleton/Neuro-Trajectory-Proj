@@ -1,8 +1,10 @@
-from keras.layers import Conv3D, MaxPooling3D
-from keras.models import Sequential
-from keras.layers import TimeDistributed, Flatten, LSTM, Dense, Activation, ZeroPadding2D, Dropout, BatchNormalization
-from keras.layers import Conv2D, MaxPooling2D
+import tensorflow as tf
+from tensorflow.keras.layers import Conv3D, MaxPooling3D
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Input, TimeDistributed, Flatten, LSTM, Dense, Activation, ZeroPadding2D, Dropout, BatchNormalization
+from tensorflow.keras.layers import Conv2D, MaxPooling2D
 import logging
+
 from data_types import *
 
 # patience=5)
@@ -10,6 +12,18 @@ from data_types import *
 # In your case, you can see that your training loss is not dropping
 # - which means you are learning nothing after each epoch.
 # It look like there's nothing to learn in this model, aside from some trivial linear-like fit or cutoff value.
+
+
+class MyTemporalLayer(tf.keras.layers.Layer):
+  def __init__(self):
+    super(MyTemporalLayer, self).__init__()
+
+  def build(self, input_shape):
+    return
+
+  def call(self, inputs):
+    return tf.stack(inputs, axis=1, name='stack')
+
 
 
 def compile_model_cnn(genome, nb_classes, input_shape):
@@ -123,6 +137,8 @@ def lstm_model(X_train_shape, parameters):
     optimizer = str(parameters[3])
     lstm_cells = int(parameters[4])
 
+    seq_len = 3
+
     print('Build model...')
     print('X_train shape: ', X_train_shape)
     print('Final layer', DATA_SET_INFO['num_classes'])
@@ -132,167 +148,202 @@ def lstm_model(X_train_shape, parameters):
 
     logging.info("Architecture:%s,%s,%s,%s,%s" % (hidden_units, dropout_parameter, loss_function, optimizer, lstm_cells))
 
+    # def get_cnn_model(input_shape=(7, 7, 3)):
+    #   input_cnn = tf.keras.layers.Input(shape=input_shape)
+    #   conv_2d_layer = tf.keras.layers.Conv2D(64, (3, 3), padding='same')(input_cnn)
+    #   model_cnn = tf.keras.Model(inputs=input_cnn, outputs=conv_2d_layer)
+    #   print(model_cnn.summary())
+    #   return model_cnn
+
     # define the CNN model
     # create dgn to train
-    dgn = Sequential()
-
+    # dgn = Sequential()
+    print("Input shape")
+    inputs = tf.keras.layers.Input(input_shape[1:])
+    print(input_shape[1:])
     # Add our first convolutional layer
-    dgn.add(Conv2D(filters=32,
+    def get_cnn_model(input_shape_=input_shape[1:]):
+        input_cnn = tf.keras.layers.Input(shape=input_shape_)
+        x = Conv2D(filters=32,
                    kernel_size=(9, 9),
                    strides=(4, 4),
                    padding='valid',
                    data_format='channels_last',
-                   input_shape=input_shape[1:],
+                   #input_shape=input_shape[1:],
                    activation='relu',
-                   name='conv1'))
-    dgn.add(BatchNormalization())
-    dgn.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool1'))
+                   name='conv1')(input_cnn)
+        x = BatchNormalization()(x)
+        x = MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool1')(x)
 
-    # Add second convolutional layer.
-    dgn.add(ZeroPadding2D(padding=(2, 2)))
-    dgn.add(Conv2D(filters=64,
+        # Add second convolutional layer.
+        x = ZeroPadding2D(padding=(2, 2))(x)
+        x = Conv2D(filters=64,
                           kernel_size=(5, 5),
                           padding='valid',
                           strides=(1, 1),
                           activation='relu',
-                          name='conv2'))
-    dgn.add(BatchNormalization())
-    dgn.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool2'))
-    dgn.add(Flatten(name='flat'))
+                          name='conv2')(x)
+        x = BatchNormalization()(x)
+        x = MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool2')(x)
+        x = Flatten(name='flat')(x)
 
-    # # Add Fully connected ANN
-    dgn.add(Dense(units=256, activation='relu', name='fc6'))
-    dgn.add(Dropout(0.5))
-    dgn.add(Dense(units=128, activation='relu', name='fc7', ))
-    dgn.add(Dropout(0.5))
+        # # Add Fully connected ANN
+        x = Dense(units=256, activation='relu', name='fc6')(x)
+        x = Dropout(0.5)(x)
+        x = Dense(units=128, activation='relu', name='fc7', )(x)
+        x = Dropout(0.5)(x)
+
+        model_cnn = tf.keras.Model(inputs=input_cnn, outputs=x)
+        print(model_cnn.summary())
+        return model_cnn
     # dgn.add(Dense(units=int(num_categories), activation='softmax', name='fc8'))
 
-    model = Sequential()
-    model.add(TimeDistributed(dgn, input_shape=input_shape))
+    #model = Sequential()
+    #model.add(TimeDistributed(dgn, input_shape=input_shape))
+    #dgn = Model(inputs=inputs, outputs=x)
+    #x = TimeDistributed(dgn)(Input(input_shape))
+    #flatten = Reshape(seq_len, -1)
+    cnn_model = get_cnn_model()
+
+    input_seq = [tf.keras.layers.Input(input_shape[1:]) for _ in range(seq_len)]
+    cnn_outputs = []
+
+    for i in range(seq_len):
+        cnn_outputs.append(cnn_model(input_seq[i]))
+
+    print("cnn_outputs")
+    print(cnn_outputs)
+    input_lstm = MyTemporalLayer()(cnn_outputs)
+    print("input_lstm")
+    print(input_lstm)
+
+    flatten = tf.keras.layers.Reshape((seq_len, -1))(input_lstm)
+    print(flatten)
 
     if lstm_cells == 1:
-            model.add((LSTM(hidden_units, return_sequences=False)))
-            model.add(Dropout(dropout_parameter))
+        lstm = LSTM(hidden_units, return_sequences=False, dropout=dropout_parameter)
+        output = lstm(flatten)
     elif lstm_cells == 2:
-            model.add((LSTM(hidden_units, return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 2), return_sequences=False)))
-            model.add(Dropout(dropout_parameter))
+        lstm = LSTM(hidden_units, return_sequences=True, dropout=dropout_parameter)
+        lstm2 = LSTM(hidden_units*2, return_sequences=False, dropout=dropout_parameter)
+        output = lstm(flatten)
+        output = lstm2(output)
     elif lstm_cells == 3:
-            model.add((LSTM(hidden_units, return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 2), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 3), return_sequences=False)))
-            model.add(Dropout(dropout_parameter))
-    elif lstm_cells == 4:
-            model.add((LSTM(hidden_units, return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units*2), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 3), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 4), return_sequences=False)))
-            model.add(Dropout(dropout_parameter))
-    elif lstm_cells == 5:
-            model.add((LSTM(hidden_units, return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units*2), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units*3), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 4), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 5), return_sequences=False)))
-            model.add(Dropout(dropout_parameter))
-    elif lstm_cells == 6:
-            model.add((LSTM(hidden_units, return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 2), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 3), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 4), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 5), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 6), return_sequences=False)))
-            model.add(Dropout(dropout_parameter))
-    elif lstm_cells == 7:
-            model.add((LSTM(hidden_units, return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 2), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 3), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 4), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 5), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 6), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 7), return_sequences=False)))
-            model.add(Dropout(dropout_parameter))
-    elif lstm_cells == 8:
-            model.add((LSTM(hidden_units, return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 2), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 3), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 4), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 5), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 6), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 7), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 8), return_sequences=False)))
-            model.add(Dropout(dropout_parameter))
-    elif lstm_cells == 9:
-            model.add((LSTM(hidden_units, return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 2), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 3), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 4), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 5), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 6), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 7), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 8), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 9), return_sequences=False)))
-            model.add(Dropout(dropout_parameter))
-    elif lstm_cells == 10:
-            model.add((LSTM(hidden_units, return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 2), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 3), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 4), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 5), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 6), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 7), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 8), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 9), return_sequences=True)))
-            model.add(Dropout(dropout_parameter))
-            model.add((LSTM((hidden_units * 10), return_sequences=False)))
-            model.add(Dropout(dropout_parameter))
+        lstm = LSTM(hidden_units, return_sequences=True, dropout=dropout_parameter)
+        lstm2 = LSTM(hidden_units*2, return_sequences=True, dropout=dropout_parameter)
+        lstm3 = LSTM(hidden_units*3, return_sequences=False, dropout=dropout_parameter)
+        output = lstm(flatten)
+        output = lstm2(output)
+        output = lstm3(output)
+    # elif lstm_cells == 4:
+    #         model.add((LSTM(hidden_units, return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units*2), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 3), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 4), return_sequences=False)))
+    #         model.add(Dropout(dropout_parameter))
+    # elif lstm_cells == 5:
+    #         model.add((LSTM(hidden_units, return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units*2), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units*3), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 4), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 5), return_sequences=False)))
+    #         model.add(Dropout(dropout_parameter))
+    # elif lstm_cells == 6:
+    #         model.add((LSTM(hidden_units, return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 2), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 3), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 4), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 5), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 6), return_sequences=False)))
+    #         model.add(Dropout(dropout_parameter))
+    # elif lstm_cells == 7:
+    #         model.add((LSTM(hidden_units, return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 2), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 3), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 4), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 5), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 6), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 7), return_sequences=False)))
+    #         model.add(Dropout(dropout_parameter))
+    # elif lstm_cells == 8:
+    #         model.add((LSTM(hidden_units, return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 2), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 3), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 4), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 5), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 6), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 7), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 8), return_sequences=False)))
+    #         model.add(Dropout(dropout_parameter))
+    # elif lstm_cells == 9:
+    #         model.add((LSTM(hidden_units, return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 2), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 3), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 4), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 5), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 6), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 7), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 8), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 9), return_sequences=False)))
+    #         model.add(Dropout(dropout_parameter))
+    # elif lstm_cells == 10:
+    #         model.add((LSTM(hidden_units, return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 2), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 3), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 4), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 5), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 6), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 7), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 8), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 9), return_sequences=True)))
+    #         model.add(Dropout(dropout_parameter))
+    #         model.add((LSTM((hidden_units * 10), return_sequences=False)))
+    #         model.add(Dropout(dropout_parameter))
 
 
-    model.add(Dense(DATA_SET_INFO['num_classes'], activation='softmax'))
+    out = Dense(DATA_SET_INFO['num_classes'], activation='softmax')(output)
+    model = Model(inputs=input_seq, outputs=out)
     model.compile(loss=loss_function, optimizer=optimizer, metrics=['accuracy'])
 
     print(model.summary())

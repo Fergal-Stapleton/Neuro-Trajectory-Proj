@@ -1,6 +1,7 @@
 """The genome to be evolved."""
 from training_history_plot import TrainingHistoryPlot
 from keras.callbacks import EarlyStopping
+import tensorflow.keras
 import random
 import logging
 import hashlib
@@ -103,6 +104,7 @@ class Genome():
 
         image_sequence_length = int((dataset.number_of_classes + 2) /2)
         parameters = list()
+        file_name = ''
 
         for p in self.all_possible_genes:
             if p is 'batch_size':
@@ -111,8 +113,10 @@ class Genome():
                 continue
             else:
                 parameters.append(self.geneparam[p])
+                file_name += str(p) + '_'
 
         print(parameters)
+        print("")
         input_shape = np.shape(dataset.X_train)
         model = model_train(input_shape, parameters)
 
@@ -127,15 +131,33 @@ class Genome():
         print("Y_train [1] just before fit: " + str(dataset.Y_train.shape[1]))
         print("Y_valid [0] just before fit: " + str(dataset.Y_valid.shape[0]))
         print("Y_valid [1] just before fit: " + str(dataset.Y_valid.shape[1]))
-        model.fit(dataset.X_train, dataset.Y_train,
+
+        #x_train_list = []
+        #x_train_shape = []
+        #x_valid_list = []
+
+        x_train_list = list(dataset.X_train.swapaxes(0, 1))
+        x_test_list = list(dataset.X_valid.swapaxes(0, 1))
+        x_valid_list = list(dataset.X_valid.swapaxes(0, 1))
+
+        for i in range(len(x_train_list)):
+            print(np.shape(x_train_list[i]))
+
+
+        print(len(x_train_list))
+        print(len(x_train_list[0]))
+
+        model.fit(x_train_list, dataset.Y_train,
                   batch_size=batch_size,
                   epochs=epochs,
                   verbose=1,
-                  validation_data=(dataset.X_valid, dataset.Y_valid),
-                  callbacks=[early_stopper, history])
+                  validation_data=(x_valid_list, dataset.Y_valid),
+                  callbacks=[early_stopper, history]
+                  )
 
-        score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
-        prediction = model.predict(dataset.X_test)
+        model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '.h5')
+        score = model.evaluate(x_valid_list, dataset.Y_valid, verbose=0)
+        prediction = model.predict(x_test_list)
         #print(prediction.shape)
         print(prediction)
         print(dataset.Y_train)
@@ -226,6 +248,7 @@ def l1_objective(p, image_sequence_length):
         temp = 0.0
         flag = 1
         if flag == 1:
+            # Y_test [0.1, 5.5, 0.3, 10.7]
             # Since our start point is implicitly always [0.0, 0.0]
             # (image_sequence_length-1)*2 -1 last coordinate
             x_tau = (image_sequence_length-1)*2 -1
@@ -242,7 +265,7 @@ def l1_objective(p, image_sequence_length):
             P_ego_y = p[i][j - 2] # starts at 0
             temp += np.sqrt((P_ego_x  - P_dest_x)**2 + (P_ego_y - P_dest_y)**2)
         dest_list.append(temp/image_sequence_length)
-    l1 = sum(dest_list)/p.shape[0]
+    l1 = sum(dest_list)/(p.shape[0]+1)
     return l1
 
 def l2_objective(p, image_sequence_length):
@@ -260,13 +283,13 @@ def l2_objective(p, image_sequence_length):
         flag = 1
         if flag == 1:
             # Since our start point is implicitly always [0.0, 0.0]
-            temp += np.abs(p[i][0] - 0.0)
+            temp += (p[i][0] - 0.0)
             flag = 0
         # these go up by 2
         for j in range(2,vector_len):
-            temp += np.abs(p[i][j] - p[i][j - 2])
+            temp += (p[i][j] - p[i][j - 2])
         vd.append(temp/image_sequence_length)
-    l2 = sum(vd)/p.shape[0]
+    l2 = sum(vd)/(p.shape[0]+1)
     return l2
 
 def l3_objective(p, image_sequence_length):
@@ -284,12 +307,12 @@ def l3_objective(p, image_sequence_length):
         flag = 1
         if flag == 1:
             # Since our start point is implicitly always [0.0, 0.0]
-            temp += np.abs(p[i][1] - 0.0)
+            temp += (p[i][1] - 0.0)
             flag = 0
         # these go up by 2
         for j in range(2,vector_len):
-            temp += np.abs(p[i][j + 1] - p[i][j - 1])
+            temp += (p[i][j + 1] - p[i][j - 1])
         vf.append(temp/image_sequence_length)
     print(vf)
-    l3 = sum(vf)/p.shape[0]
+    l3 = sum(vf)/(p.shape[0]+1)
     return l3

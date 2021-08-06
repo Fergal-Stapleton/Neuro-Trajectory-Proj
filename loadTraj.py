@@ -10,7 +10,7 @@ from natsort import index_natsorted
 
 class LoadTraj:
 
-    def getTraj(number_of_classes):
+    def getTraj(number_of_classes, slide):
         df = pd.read_csv("images/state_buf.txt", sep='\t')
         #print(df.shape[0])
         #print(df.head())
@@ -48,7 +48,10 @@ class LoadTraj:
                 #l2 = l2_objective(p, seq_len)
                 #l3 = l3_objective(p, seq_len)
                 #Obj_train = np.column_stack((l1, l2, l3))
-                Y_train = np.array(trajectory(p, seq_len))
+                if slide == True:
+                    Y_train = np.array(trajectory_plus_one(p, seq_len))
+                else:
+                    Y_train = np.array(trajectory_seq_len(p, seq_len))
             elif folder == "testing":
                 df_testing = df.loc[df.index[index_list]]
                 print("Testing df shape:"+str(df_testing.shape))
@@ -58,7 +61,10 @@ class LoadTraj:
                 #l2 = l2_objective(p, seq_len)
                 #l3 = l3_objective(p, seq_len)
                 #Obj_test = np.column_stack((l1, l2, l3))
-                Y_test = np.array( trajectory(p, seq_len))
+                if slide == True:
+                    Y_test = np.array(trajectory_plus_one(p, seq_len))
+                else:
+                    Y_test = np.array(trajectory_seq_len(p, seq_len))
             elif folder == "validation":
                 df_validation = df.loc[df.index[index_list]]
                 print("Validation df shape:"+str(df_validation.shape))
@@ -68,7 +74,10 @@ class LoadTraj:
                 #l2 = l2_objective(p, seq_len)
                 #l3 = l3_objective(p, seq_len)
                 #Obj_validation = np.column_stack((l1, l2, l3))
-                Y_validation = np.array(trajectory(p, seq_len))
+                if slide == True:
+                    Y_validation = np.array(trajectory_plus_one(p, seq_len))
+                else:
+                    Y_validation = np.array(trajectory_seq_len(p, seq_len))
             else:
                 print("folder does not exist in list of folders, required list: " + folder)
                 sys.exit()
@@ -76,11 +85,12 @@ class LoadTraj:
         return Y_train, Y_test, Y_validation
 
 
-def trajectory(p, seq_len):
+def trajectory_seq_len(p, seq_len):
     traj = []
     for i in range(math.floor(len(p)/seq_len)):
         j = seq_len * i
         coord = []
+        # Trajectory designed so ego vehicle is always at [0, 0]
         x0 = p[j][0]
         y0 = p[j][1]
         j = seq_len * i
@@ -92,6 +102,29 @@ def trajectory(p, seq_len):
             #print(k)
             xk = p[j+k][0]
             yk = p[j+k][1]
+            # These may be neg
+            x = xk - x0
+            y = yk - y0
+            coord.append(x)
+            coord.append(y)
+        traj.append(coord)
+    return traj
+
+def trajectory_plus_one(p, seq_len):
+    traj = []
+    for i in range(len(p)- seq_len):
+        coord = []
+        # Trajectory designed so ego vehicle is always at [0, 0]
+        x0 = p[i][0]
+        y0 = p[i][1]
+        # The image filename will be dropped later in get_input_sequences()
+        #coord.append(str(p[j][5]).strip('_image.png'))
+        coord.append(p[i][5])
+        #print(p[j][5])
+        for k in range(1, seq_len):
+            #print(k)
+            xk = p[i+k][0]
+            yk = p[i+k][1]
             # These may be neg
             x = xk - x0
             y = yk - y0
