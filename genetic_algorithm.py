@@ -8,6 +8,7 @@ import datetime
 import time
 import logging
 import sys
+#import h5py
 
 
 class GeneticAlgorithm:
@@ -16,8 +17,8 @@ class GeneticAlgorithm:
         self.data_set = data_set
         self.params = params
         self.model = model
-        self.population = 20
-        self.generations = 10
+        self.population = 6
+        self.generations = 3
 
         self.create_dirs()
 

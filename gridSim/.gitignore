@@ -1,3 +1,8 @@
 *.xml
 *.pyc
 *.iml
+*.png
+*.jpg
+*.pyc
+*.npy
+*.mp4
