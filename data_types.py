@@ -8,7 +8,8 @@
 #                  'classes_name':  ['city', 'country_road', 'highway', 'intersection', 'parking_lot', 'round_about', 'traffic_jam', 't_junktion']
 #                  }
 
-DATA_SET_INFO = {'data_set_path': 'D:/Main/GitHub/Neuro-Trajectory/Neuro-Trajectory-Proj/images_splited',
+DATA_SET_INFO = {#data_set_path': '/ichec/home/users/fergals/neuroTraj/Neuro-Trajectory-Proj/images_splited',
+                 'data_set_path': 'D:/Main/GitHub/Neuro-Trajectory/Neuro-Trajectory-Proj/images_splited',
                  'image_height': 128,
                  'image_width': 128,
                  'image_channels': 3,

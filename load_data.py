@@ -418,6 +418,17 @@ class LoadData(object):
             self.X_test, self.Y_test = self.shuffler(self.X_test, self.Y_test)
             self.X_valid, self.Y_valid = self.shuffler(self.X_valid, self.Y_valid)
 
+        #joint = np.vstack((self.Y_train, self.Y_test, self.Y_valid))
+        #xmin = np.amin(joint)
+        #xmax = np.amax(joint)
+
+        #def normalizer(array, xmin, xmax):
+        #    return (array - xmin)/ (xmax - xmin)
+
+        #self.Y_train = normalizer(self.Y_train, xmin, xmax)
+        #self.Y_test = normalizer(self.Y_test, xmin, xmax)
+        #self.Y_valid = normalizer(self.Y_valid, xmin, xmax)
+
         pd.DataFrame(self.Y_train).to_csv("Y_train")
         pd.DataFrame(self.Y_valid).to_csv("Y_valid")
 

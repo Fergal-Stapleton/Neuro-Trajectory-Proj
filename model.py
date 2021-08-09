@@ -235,7 +235,15 @@ def lstm_model(X_train_shape, parameters):
         output = lstm(flatten)
         output = lstm2(output)
         output = lstm3(output)
-    # elif lstm_cells == 4:
+    elif lstm_cells == 4:
+        lstm = LSTM(hidden_units, return_sequences=True, dropout=dropout_parameter)
+        lstm2 = LSTM(hidden_units*2, return_sequences=True, dropout=dropout_parameter)
+        lstm3 = LSTM(hidden_units*3, return_sequences=False, dropout=dropout_parameter)
+        lstm4 = LSTM(hidden_units*4, return_sequences=False, dropout=dropout_parameter)
+        output = lstm(flatten)
+        output = lstm2(output)
+        output = lstm3(output)
+        output = lstm4(output)
     #         model.add((LSTM(hidden_units, return_sequences=True)))
     #         model.add(Dropout(dropout_parameter))
     #         model.add((LSTM((hidden_units*2), return_sequences=True)))

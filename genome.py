@@ -21,6 +21,10 @@ class Genome():
             all_possible_genes (dict): Parameters for the genome
         """
         self.accuracy = 0.0
+        self.x_err = 0.0
+        self.x_max = 0.0
+        self.y_err = 0.0
+        self.y_max = 0.0
         self.fitness_vector = [0.0, 0.0, 0.0]
         self.all_possible_genes = all_possible_genes
 
@@ -164,6 +168,8 @@ class Genome():
         real = dataset.Y_train
 
         pred_acc = self.rmse(prediction, real, image_sequence_length)
+        x_err, x_max = self.x_error(prediction, real, image_sequence_length)
+        y_err, y_max = self.y_error(prediction, real, image_sequence_length)
 
         # TEST here
         # TODO hardcoding image_sequence_length, this needs to be fixed
@@ -181,7 +187,7 @@ class Genome():
         # we just need to know the final scores and the architecture
 
         # 1 is accuracy. 0 is loss.
-        return pred_acc, L
+        return pred_acc, x_err, x_max, y_err, y_max, L
 
     def rmse(self, pred, Y_train, image_sequence_length):
         acc_list = []
@@ -198,10 +204,38 @@ class Genome():
         pred_acc = sum(acc_list)/pred.shape[0]
         return pred_acc
 
+    def x_error(self, pred, Y_train, image_sequence_length):
+        acc_list = []
+        x_tau = (image_sequence_length-1)*2 -1
+        for i in range(pred.shape[0]):
+            temp = 0.0
+            for j in range(2, x_tau):
+                P_hat_x = pred[i][j - 1] # starts at 1
+                P_x = Y_train[i][j - 1]
+                temp += np.abs((P_hat_x  - P_x))
+            acc_list.append(temp/image_sequence_length)
+        x_err = sum(acc_list)/pred.shape[0]
+        x_max = np.max(acc_list)
+        return x_err, x_max
+
+    def y_error(self, pred, Y_train, image_sequence_length):
+        acc_list = []
+        x_tau = (image_sequence_length-1)*2 -1
+        for i in range(pred.shape[0]):
+            temp = 0.0
+            for j in range(2, x_tau):
+                P_hat_y = pred[i][j - 2] # starts at 0
+                P_y = Y_train[i][j - 2]
+                temp += np.abs((P_hat_y  - P_y))
+            acc_list.append(temp/image_sequence_length)
+        y_err = sum(acc_list)/pred.shape[0]
+        y_max = np.max(acc_list)
+        return y_err, y_max
+
     def train(self, model, trainingset, path, i):
         #don't bother retraining ones we already trained
         if self.accuracy == 0.0:
-            self.accuracy, self.fitness_vector = self.train_and_score(model, trainingset, path, i)
+            self.accuracy, self.x_err, self.x_max, self.y_err, self.y_max, self.fitness_vector = self.train_and_score(model, trainingset, path, i)
 
     def print_genome(self):
         """Print out a genome."""
@@ -311,7 +345,8 @@ def l3_objective(p, image_sequence_length):
             flag = 0
         # these go up by 2
         for j in range(2,vector_len):
-            temp += (p[i][j + 1] - p[i][j - 1])
+            # 0.5 is the min velocity as such min velocity l3 = 1 and as velocity increases l3 -> 0
+            temp += 0.5/(p[i][j + 1] - p[i][j - 1])
         vf.append(temp/image_sequence_length)
     print(vf)
     l3 = sum(vf)/(p.shape[0]+1)
