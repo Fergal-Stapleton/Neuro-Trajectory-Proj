@@ -8,6 +8,7 @@ import datetime
 import time
 import logging
 import sys
+import math
 #import h5py
 
 
@@ -17,8 +18,8 @@ class GeneticAlgorithm:
         self.data_set = data_set
         self.params = params
         self.model = model
-        self.population = 25
-        self.generations = 10
+        self.population = 10
+        self.generations = 5
 
         self.create_dirs()
 
@@ -59,6 +60,11 @@ class GeneticAlgorithm:
             params_csv.append(genome.fitness_vector[0])
             params_csv.append(genome.fitness_vector[1])
             params_csv.append(genome.fitness_vector[2])
+            if (math.isnan(genome.fitness_vector[0]) == True or math.isnan(genome.fitness_vector[1]) == True or math.isnan(genome.fitness_vector[2]) == True):
+                print(genome.fitness_vector[0])
+                print(genome.fitness_vector[1])
+                print(genome.fitness_vector[2])
+
             row = params_csv
             writer.writerow(row)
             pbar.update(1)

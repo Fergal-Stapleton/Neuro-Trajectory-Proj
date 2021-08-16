@@ -175,6 +175,23 @@ class Evolver():
 
         return children
 
+    # https://github.com/baopng/NSGA-II/blob/29a6ec33f87b32a7fb2596091e1a51c897106e7b/nsga2/utils.py#L24
+    def nsga2(self, pop):
+        """Evolve a population of genomes using NSGA-II. Steps involved
+            1) Create new pop using corssover and mutation
+            2) Combine
+            3) Use non-dominated
+
+        Args:
+            pop (list): A list of genome parameters
+
+        Returns:
+            (list): The evolved population of networks
+
+        """
+
+
+    # will rename evolve at some stage
     def evolve(self, pop):
         """Evolve a population of genomes.
 
@@ -223,7 +240,10 @@ class Evolver():
         #print(df)
         df = df.sort_values('non_dominated', ascending=False)
 
-        #print(df)
+        print("df")
+        print(df)
+        print("")
+
 
         #plt.scatter(obj1, obj2)
         #plt.show()
@@ -253,7 +273,8 @@ class Evolver():
         # In this first step, we keep the 'top' X percent (as defined in self.retain)
         # We will not change them, except we will update the generation
         new_generation = graded[:retain_length]
-
+        print("graded[:retain_length]: " + str(graded[:retain_length]))
+        print("graded[retain_length:]: " + str(graded[retain_length:]))
         # For the lower scoring ones, randomly keep some anyway.
         # This is wasteful, since we _know_ these are bad, so why keep rescoring them without modification?
         # At least we should mutate them
@@ -272,11 +293,12 @@ class Evolver():
         ng_length = len(new_generation)
         desired_length = len(pop) - ng_length
         children = []
+        print('desired length: ' + str(desired_length))
 
         # Add children, which are bred from pairs of remaining (i.e. very high or lower scoring) genomes.
         while len(children) < desired_length:
             # Get a random mom and dad, but, need to make sure they are distinct
-            print(ng_length)
+            # print(ng_length)
             parents = random.sample(range(ng_length-1), k=2)
 
             i_male = parents[0]
@@ -293,7 +315,15 @@ class Evolver():
             for baby in babies:
                 children.append(baby)
 
+        print('children: ' + str(len(children)))
         new_generation.extend(children)
+
+        print("pop and new gen lengths")
+        print('old pop: ' + str(len(pop)))
+        print('new pop: ' + str(len(new_generation)))
+        assert len(pop) == len(new_generation)
+
+        #sys.exit()
 
         return new_generation
 

@@ -7,6 +7,8 @@ import logging
 import hashlib
 import copy
 import numpy as np
+import sys
+import math
 from keras import backend as K
 
 
@@ -77,8 +79,8 @@ class Genome():
         current_value = self.geneparam[gene_to_mutate]
         possible_choices = copy.deepcopy(self.all_possible_genes[gene_to_mutate])
         possible_choices.remove(current_value)
-        print(self.geneparam[gene_to_mutate])
-        print( possible_choices )
+        #print(self.geneparam[gene_to_mutate])
+        #print( possible_choices )
         self.geneparam[gene_to_mutate] = random.choice( possible_choices )
         self.update_hash()
 
@@ -148,8 +150,8 @@ class Genome():
             print(np.shape(x_train_list[i]))
 
 
-        print(len(x_train_list))
-        print(len(x_train_list[0]))
+        #print(len(x_train_list))
+        #print(len(x_train_list[0]))
 
         model.fit(x_train_list, dataset.Y_train,
                   batch_size=batch_size,
@@ -162,23 +164,32 @@ class Genome():
         model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '.h5')
         score = model.evaluate(x_valid_list, dataset.Y_valid, verbose=0)
         prediction = model.predict(x_test_list)
-        #print(prediction.shape)
+
+
+        print("print length of predictions: " + str(prediction.shape[0]))
         print(prediction)
-        print(dataset.Y_train)
+        #print(dataset.Y_train)
         real = dataset.Y_train
 
         pred_acc = self.rmse(prediction, real, image_sequence_length)
         x_err, x_max = self.x_error(prediction, real, image_sequence_length)
         y_err, y_max = self.y_error(prediction, real, image_sequence_length)
 
-        # TEST here
-        # TODO hardcoding image_sequence_length, this needs to be fixed
-        # original code also has this hardcoded in load_data.py
+        # Revert our prediction with ymin and ymax
 
+        # While our prediction is done solely on our validation set (test is withheld), our objective valculation should be
+        # based on the training set
+        #     1) We would bias our evolutionary stratregy if we used validation
+        #     2) Our 3rd objective requires the training data
+        obj_training = model.predict(x_train_list)
 
-        l1 = l1_objective(prediction, image_sequence_length)
-        l2 = l2_objective(prediction, image_sequence_length)
-        l3 = l3_objective(prediction, image_sequence_length)
+        l1 = l1_objective(obj_training, image_sequence_length)
+        l2 = l2_objective(obj_training, dataset.self.t_delta_train, image_sequence_length)
+        l3 = l3_objective(obj_training, dataset.self.t_delta_train,image_sequence_length)
+        if math.isnan(l1) or  math.isnan(l2) or  math.isnan(l3):
+            print("One or more objectives were stored as NaN, exiting...")
+            sys.exit()
+
         L = [l1, l2, l3]
         print(L)
         print(pred_acc)
@@ -302,7 +313,7 @@ def l1_objective(p, image_sequence_length):
     l1 = sum(dest_list)/(p.shape[0]+1)
     return l1
 
-def l2_objective(p, image_sequence_length):
+def l2_objective(p, t_delta_train, image_sequence_length):
     """
     Calculate Eqn 4. NeuroTrajectory lateral velocity
     :params: Numpy array of input data
@@ -322,11 +333,11 @@ def l2_objective(p, image_sequence_length):
         # these go up by 2
         for j in range(2,vector_len):
             temp += (p[i][j] - p[i][j - 2])
-        vd.append(temp/image_sequence_length)
+        vd.append((temp/image_sequence_length)*t_delta_train[i])
     l2 = sum(vd)/(p.shape[0]+1)
     return l2
 
-def l3_objective(p, image_sequence_length):
+def l3_objective(p, t_delta_train, image_sequence_length):
     """
     Calculate Eqn 5. NeuroTrajectory longtitudinal velocity
     :params: Numpy array of input data
@@ -341,13 +352,13 @@ def l3_objective(p, image_sequence_length):
         flag = 1
         if flag == 1:
             # Since our start point is implicitly always [0.0, 0.0]
-            temp += (p[i][1] - 0.0)
+            temp += 13-(p[i][1] - 0.0)
             flag = 0
         # these go up by 2
         for j in range(2,vector_len):
             # 0.5 is the min velocity as such min velocity l3 = 1 and as velocity increases l3 -> 0
-            temp += 0.5/(p[i][j + 1] - p[i][j - 1])
-        vf.append(temp/image_sequence_length)
+            temp += 13-(p[i][j + 1] - p[i][j - 1])
+        vf.append((temp/image_sequence_length)*t_delta_train[i])
     print(vf)
     l3 = sum(vf)/(p.shape[0]+1)
     return l3

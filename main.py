@@ -81,9 +81,12 @@ def one_train(path, data_set, model_function, parameters):
 
 
 def main():
-    MODEL_NAME = input("Please introduce model name (dgn, conv3d, lstm_bucketing, lstm_sliding): ")
-    GA = input("Do you want to use genetic algorithm for your model? (yes/no): ")
-    GS = input("Do you want to use grid search for your model? (yes/no): ")
+    #MODEL_NAME = input("Please introduce model name (dgn, conv3d, lstm_bucketing, lstm_sliding): ")
+    #GA = input("Do you want to use genetic algorithm for your model? (yes/no): ")
+    #GS = input("Do you want to use grid search for your model? (yes/no): ")
+    MODEL_NAME = 'lstm_sliding'
+    GA = 'yes'
+    GS = 'no'
 
     time_str = time.strftime("%Y-%m-%d_%H %M")
     path = PATH_SAVE_FIG + str(time_str)

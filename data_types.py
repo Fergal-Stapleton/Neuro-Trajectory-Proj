@@ -36,7 +36,7 @@ PARAMETERS_LSTM = {'hidden_units': [8, 16, 32, 64],
                    'epochs': [10, 20, 30, 40, 50],
                    'loss_function': ['mean_squared_error', 'categorical_crossentropy'],
                    'optimizer': ['rmsprop', 'nadam', 'sgd', 'adagrad', 'adadelta', 'adam', 'adamax'],
-                   'lstm_cells':[1, 2, 3]
+                   'lstm_cells':[1, 2, 3, 4]
                    }
 
 PARAMETERS_CONV3D = {'batch_size': [8, 16, 24, 32],
