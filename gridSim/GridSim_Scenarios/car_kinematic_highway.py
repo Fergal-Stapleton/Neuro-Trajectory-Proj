@@ -5,7 +5,8 @@ from print_activations import print_activations
 import pygame
 import numpy as np
 import random
-
+import time
+import os
 
 class HighwaySimulator(Simulator):
 
@@ -28,11 +29,12 @@ class HighwaySimulator(Simulator):
         self.object_map = pygame.transform.scale(self.object_map, (self.bgWidth, self.bgHeight))
         self.traffic_offset_value = 3 - car_x
 
-        self.car.max_velocity = 13
+        self.car.max_velocity = 32.5
         self.car.angle = -90
         self.initial_car_position = car_x
         self.traffic_cars_nr = highway_traffic_cars_nr
-        self.traffic_safe_space = 25
+        self.traffic_safe_space = 60
+        random.seed(1)
 
         self.highway_traffic = []
         if highway_traffic is True:
@@ -146,10 +148,13 @@ class HighwaySimulator(Simulator):
             # remove that position from the available position list
             available_positions.remove(car_position)
             # init traffic car and add it to traffic list
-            traffic_car = Car(car_position[0], car_position[1], 0)
+            # const_velocity should always ve set to zero as we want our traffic to have variable speeds
+            traffic_car = Car(car_position[0], car_position[1], False)
+            traffic_car.variation = random.uniform(-1, 1)
             traffic_car.angle = -90
             traffic_car.include_next_lane_mechanic = True
-            traffic_car.max_velocity = random.randint(10, self.car.max_velocity)
+            traffic_car.max_velocity = random.uniform(22, 27)
+            #print(traffic_car.max_velocity)
             self.highway_traffic.append(traffic_car)
 
     def translate_ego_car_position_to_traffic_position(self):
@@ -408,12 +413,20 @@ class HighwaySimulator(Simulator):
             index_image = index_image + 1
 
             pygame.display.update()
-            self.clock.tick(self.ticks)
+            #fpsClock.tick(FPS)
+            self.clock.tick(5)
+            #print(fpsClock)
+            #print(self.clock.tick(self.ticks))
+            time.sleep(0.02)
 
         pygame.quit()
 
 
 if __name__ == '__main__':
+
+    #os.environ["SDL_VIDEODRIVER"]="x11"
     screen = pygame.display.set_mode((1280, 720))
+    #FPS = 30
+    #fpsClock = pygame.time.Clock()
     highway_sim = HighwaySimulator(screen, 1280, 720, highway_traffic_cars_nr=7)
     highway_sim.run()

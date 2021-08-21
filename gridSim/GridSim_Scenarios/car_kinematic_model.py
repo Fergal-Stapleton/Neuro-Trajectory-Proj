@@ -44,7 +44,7 @@ class Simulator:
 
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
 
-        self.car = Car(car_x, car_y, 10)
+        self.car = Car(car_x, car_y, True)
         if car_image_path is not None:
             self.car_image_path = os.path.join(self.current_dir, car_image_path)
             self.car_image = pygame.image.load(self.car_image_path).convert_alpha()
@@ -101,7 +101,7 @@ class Simulator:
         self.ppu = 16
         self.exit = False
         self.clock = pygame.time.Clock()
-        self.ticks = 60
+        self.ticks = 20
         self.dt = None
 
         self.cbox_front_sensor = Checkbox(self.screen_width - 200, 10, 'Enable front sensor', self.sensors)
@@ -422,6 +422,8 @@ class Simulator:
         :param mouse_button_pressed:
         :return:
         """
+        #print(len(pygame.event.get()))
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.exit = True
@@ -434,6 +436,7 @@ class Simulator:
                 if self.cbox_distance_sensor.onCheckbox(mouse_pos) and mouse_button_pressed is False:
                     self.cbox_distance_sensor.changeState()
                 mouse_button_pressed = True
+                event.clear()
             if event.type == pygame.MOUSEBUTTONUP:
                 mouse_button_pressed = False
 
@@ -509,10 +512,10 @@ class Simulator:
         :return:
         """
         image_name =  str(index) + '_image.png'
-        for traffic_car in all_highway_traffic:
-            print("traffic")
-            print(traffic_car)
-            print(traffic_car.position.x)
+        #for traffic_car in all_highway_traffic:
+            #print("traffic")
+            #print(traffic_car)
+            #print(traffic_car.position.x)
 
         if self.state_buf_path is None:
             raise OSError('state_buf_path is empty.')
@@ -521,7 +524,7 @@ class Simulator:
 
         actions = [self.car.position.x, self.car.position.y, float(round(self.car.angle, 3)),
                    float(round(self.car.acceleration, 3)),
-                   float(round(self.car.velocity.x, 3)), image_name]
+                   float(round(self.car.velocity.x, 3)), float(round(self.car.angular_velocity, 3)), image_name, all_highway_traffic]
 
         # Save state_buf
         write_state_buf(self.state_buf_path, actions)
@@ -536,7 +539,7 @@ class Simulator:
         self.optimized_rear_sensor(activation_mask, display_obstacle_on_sensor=True)
 
         #save_sensor_frame_path="save_sensor_frame_path"
-        save_sensor_frame_path='D:/Main/GitHub/Neuro-Trajectory/GridSim-master/GridSim-master/GridSim_Scenarios/save_sensor_frame_path_a'
+        save_sensor_frame_path='D:/Main/GitHub/Neuro-Trajectory/Neuro-Trajectory-Proj/gridSim/GridSim_Scenarios/save_sensor_frame_path_a'
 
         image_rect = pygame.Rect((440, 160), (400, 400))
 

@@ -5,7 +5,7 @@ import numpy as np
 
 
 class Car:
-    def __init__(self, x, y, const_velocity, angle=0.0, length=4, max_steering=15, max_acceleration=15.0):
+    def __init__(self, x, y, const_velocity, angle=0.0, length=4, max_steering=1.3, max_acceleration=7.0):
         self.position = Vector2(x, y)
         self.velocity = Vector2(0.0, 0.0)
         self.const_velocity = const_velocity
@@ -13,9 +13,12 @@ class Car:
         self.length = length
         self.max_acceleration = max_acceleration
         self.max_steering = max_steering
-        self.max_velocity = 18
-        self.brake_deceleration = 30
-        self.free_deceleration = 5
+        self.max_velocity = 32.5
+        self.brake_deceleration = 20
+        self.free_deceleration = 1
+        self.angular_velocity = 0.0
+        # +- 10 km/hr
+        self.variation = 0.0
 
         self.acceleration = 0.0
         self.steering = 0.0
@@ -70,10 +73,17 @@ class Car:
         self.acceleration = max(-self.max_acceleration, min(self.acceleration, self.max_acceleration))
         self.steering = max(-self.max_steering, min(self.steering, self.max_steering))
         self.velocity += (self.acceleration * dt, 0)
-        if self.const_velocity > 0:
-            self.velocity.x = max(10, min(self.velocity.x, self.max_velocity))
+        if self.const_velocity == True:
+            self.velocity.x = max(20, min(self.velocity.x, self.max_velocity))
+            #print(self.velocity.x)
         else:
-            self.velocity.x = max(-self.max_velocity, min(self.velocity.x, self.max_velocity))
+            # velocity x may be between 20 and 30
+            print(self.velocity.x+self.variation)
+            print(self.max_velocity)
+            self.velocity.x = max(-5+self.variation, min(self.velocity.x+self.variation, self.max_velocity))
+            #if self.velocity.x > 10:
+            #    self.velocity.x = -5+self.variation
+            print()
 
         #print( max(-self.max_velocity, min(self.velocity.x, self.max_velocity)))
         # this mechanic helps if you have traffic cars that change lane
@@ -119,8 +129,10 @@ class Car:
         if self.steering:
             turning_radius = self.length / tan(radians(self.steering))
             angular_velocity = self.velocity.x / turning_radius
+            self.angular_velocity = np.abs(angular_velocity)
         else:
             angular_velocity = 0
+            self.angular_velocity = np.abs(angular_velocity)
 
         self.position += self.velocity.rotate(-self.angle) * dt
         self.angle += degrees(angular_velocity) * dt
