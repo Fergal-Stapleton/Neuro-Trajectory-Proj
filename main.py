@@ -25,10 +25,10 @@ def load_data(MODEL_NAME):
     path_to_npy = './data_sets/' + MODEL_NAME + '/X_train.npy'
 
     # FS: turn this off for now as it is causing code to fall over
-    #if os.path.exists(path_to_npy):
-    #    data_set.load_processed_data()
-    #else:
-    data_set.load_new_data()
+    if os.path.exists(path_to_npy):
+        data_set.load_processed_data()
+    else:
+        data_set.load_new_data()
 
     return data_set
 
@@ -101,6 +101,7 @@ def main():
          (MODEL_NAME == 'lstm_sliding'):
         parameters = PARAMETERS_LSTM
         model_function = model.lstm_model
+        #model_function = model.lstm_test
 
     print('\nLoad dataset...')
     data_set = load_data(MODEL_NAME)

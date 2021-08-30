@@ -78,12 +78,12 @@ class Car:
             #print(self.velocity.x)
         else:
             # velocity x may be between 20 and 30
-            print(self.velocity.x+self.variation)
-            print(self.max_velocity)
+            #print(self.velocity.x+self.variation)
+            #print(self.max_velocity)
             self.velocity.x = max(-5+self.variation, min(self.velocity.x+self.variation, self.max_velocity))
             #if self.velocity.x > 10:
             #    self.velocity.x = -5+self.variation
-            print()
+            #print()
 
         #print( max(-self.max_velocity, min(self.velocity.x, self.max_velocity)))
         # this mechanic helps if you have traffic cars that change lane

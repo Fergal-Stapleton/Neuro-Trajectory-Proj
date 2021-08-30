@@ -4,7 +4,8 @@ import pygame
 from PIL import Image
 import os
 import cv2
-
+import sys
+from datetime import datetime
 
 def read_coords(fname):
     with open(fname) as csvFile:
@@ -81,29 +82,49 @@ def check_valid_csv(fname):
 
 def write_state_buf(fname, args):
     # args[6] will be teh other car positions
-    cars = args[6]
+    cars = args[7]
     car_headers = []
-    for i in range(0,args[6]-1):
+
+    for i in range(len(args[7])):
         car_headers.append('x'+str(i+1))
         car_headers.append('y'+str(i+1))
 
-    fieldnames = ['CarPositionX', 'CarPositionY', 'CarAngle', 'Acceleration', 'Velocity_x', 'ImageName'] + car_headers
+    if len(car_headers) > 0 and len(cars) == 0:
+        raise AssertionError("Traffic car trajectories not recorded")
+        sys.exit()
+
+
+
+    #now = datetime.now()
+    if(args[1]>40000):
+        sys.exit()
+
+    #current_time = now.strftime("%H:%M:%S")
+    #print("Current Time =", current_time)
+    #print(cars[0].position.x)
+    #print(car_headers)
+
+    results_dict = {'CarPositionX': args[0],
+                     'CarPositionY': args[1],
+                     'CarAngle': args[2],
+                     'Acceleration': args[3],
+                     'Velocity_long': args[4],
+                     'Velocity_angular': args[5],
+                     'ImageName': args[6]}
+
+    for i in range(len(args[7])):
+        results_dict[car_headers[i*2]] = cars[i].position.x
+        results_dict[car_headers[i*2+1]] = cars[i].position.y
+
+
+    fieldnames = ['CarPositionX', 'CarPositionY', 'CarAngle', 'Acceleration', 'Velocity_long', 'Velocity_angular','ImageName'] + car_headers
     flag = check_valid_csv(fname)
     if flag == 'empty':
         try:
             with open(fname, 'w') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter='\t', lineterminator='\n')
                 writer.writeheader()
-                writer.writerow({'CarPositionX': args[0],
-                                 'CarPositionY': args[1],
-                                 'CarAngle': args[2],
-                                 'Acceleration': args[3],
-                                 'Velocity_x': args[4],
-                                 #'Velocity_y': args[5],
-                                 'ImageName': args[5]})
-                # Use dict to fill the contents of the file
-                for i in range(0,args[6]-1):
-                    writer.writerow({str(cars_headers[i]): cars[i]})
+                writer.writerow(results_dict)
         except :
             pass
 
@@ -111,13 +132,7 @@ def write_state_buf(fname, args):
         try:
             with open(fname, 'a') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter='\t', lineterminator='\n')
-                writer.writerow({'CarPositionX': args[0],
-                                 'CarPositionY': args[1],
-                                 'CarAngle': args[2],
-                                 'Acceleration': args[3],
-                                 'Velocity_x': args[4],
-                                 #'Velocity_y': args[5],
-                                 'ImageName': args[5]})
+                writer.writerow(results_dict)
         except:
             pass
 

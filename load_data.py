@@ -38,6 +38,14 @@ class LoadData(object):
         self.t_delta_test = None
         self.t_delta_valid = None
         # Obj. Likely only need Obj_validationm
+        self.vel_l = None
+        self.vel_a = None
+        self.vel_l_train = None
+        self.vel_a_train = None
+        self.vel_l_test = None
+        self.vel_a_test = None
+        self.vel_l_valid = None
+        self.vel_a_valid = None
         self.Obj_train = None
         self.Obj_test = None
         self.Obj_validation  = None
@@ -45,8 +53,8 @@ class LoadData(object):
         self.slide = False
         self.shuffle = True
         # Max and Min - need to revert to real coordinates
-        self.ymin = 0.0
-        self.ymax = 0.0
+        self.ymin = -2.7186277031692385
+        self.ymax = 19.73575844802872
 
         self.load = {"dgn": self.load_dgn_data,
                      "conv3d": self.load_conv3d_data,
@@ -96,13 +104,30 @@ class LoadData(object):
         df_y = pd.DataFrame(y,  columns=colList)
         df_y = df_y.sort_values(by="image", key=lambda x: np.argsort(index_natsorted(df_y["image"])))
         df_y = df_y.reset_index(drop=True)
-        print(df_y.head())
+        #df_vel_l = pd.DataFrame(vel_l,  columns=['image', 'velocity'])
+        #df_vel_l = df_vel_l.sort_values(by="image", key=lambda x: np.argsort(index_natsorted(df_vel_l["image"])))
+        #df_vel_l = df_vel_l.reset_index(drop=True)
+        #df_vel_a = pd.DataFrame(vel_a,  columns=['image', 'velocity'])
+        #df_vel_a = df_vel_a.sort_values(by="image", key=lambda x: np.argsort(index_natsorted(df_vel_a["image"])))
+        #df_vel_a = df_vel_a.reset_index(drop=True)
+        #print(df_y.head())
+        #print(df_vel_l.head())
+        #print(df_vel_a.head())
+        df_y_process = pd.DataFrame()
 
+        df = pd.read_csv("images/state_buf.txt", sep='\t')
+        #pos_l = df['CarPositionY'].to_list()
+        # = df['Velocity_angular'].to_list()
+
+        # Test for large jumps in position
+        if (df_y['y2'].any().astype(float) > 50):
+            print(df_y[df_y['y2'].astype(float) > 50])
         # lets be smart and assume that the indexes may have gaps
         # Why? its is easier to remove images relating to collisions than to restart a simulation (this includes build up to and aftermath)
         #print(files)
         file_index = [f[0].split('_')[0] for f in files]
         #print(file_index)
+        #print(files)
 
         # the next 20 or so lines get the start and end of the gap sequences of a file
         # so.... for instance if we have:
@@ -143,17 +168,19 @@ class LoadData(object):
             if int(file_index[-1]) == inc:
                 end_list.append(file_index[-1])
 
-        if self.slide == True:
-            start_idx = 1
-        else:
-            start_idx = 0
-        timestamp_prev = self.get_timestamp_from_file_name(files[start_idx][0])
+        #if self.slide == True:
+        start_idx = 1
+        #else:
+        #    start_idx = 0
+        index_prev = self.get_index_from_file_name(files[start_idx][0])
 
 
         # create sequences till the sequence_lenght to last image is processed or till the number of sequences
         # desired by the user is reached
-        # end_list
-        # start_list
+        print(end_list)
+        print(start_list)
+        final_sequence_file_popped = []
+        sequence_list = []
         for j in range(len(start_list)):
             sequences = np.empty(shape=(0,self.image_sequence_length,self.image_width, self.image_height,self.image_channels))
             # We should have a filename which correponds to the start of each image sequence
@@ -162,7 +189,7 @@ class LoadData(object):
             start_sequence_file = []
             # Create a list of implausaible sequences to remove at the end
             remove_implausible_list = []
-            t_delta_final = 0.0
+
 
 
             #if self.type is 'lstm_sliding':
@@ -176,12 +203,18 @@ class LoadData(object):
 
             # build up a sequence of x images
             sequence = np.zeros(shape=(1, self.image_sequence_length, self.image_height, self.image_width, self.image_channels))
-            #start_idx = 0
-            timestamp_prev = self.get_timestamp_from_file_name(files[start_idx][0])
-            first_time = True
+
+            #index_prev = self.get_index_from_file_name(files[start_idx][0])
+            #timestamp_prev = self.get_timestamp_from_file_name(files[start_idx][0], source_dir_path_complete)
+            first_time = False
             first_slides_count = 0
+            remove_flag = False
             while ((start_idx + self.image_sequence_length) <= len(files)) and (int(start_list[j]) <= int(file_index[start_idx]) <= int(end_list[j])):
+                t_delta_final = 0.0
                 t_delta_tmp = 0.0
+                #vel_l_tmp = 0.0
+                #vel_a_tmp = 0.0
+
                 #print(file_index[start_idx])
                 #print(int(end_list[j]))
                 # stop parsing data if the requested number of sequences have been collected
@@ -192,8 +225,9 @@ class LoadData(object):
                 sample_sequence_counter = 0
 
                 # update previous timestamp in case of the sliding mode sequence generation
-                if self.slide is True:
-                    timestamp_prev = self.get_timestamp_from_file_name(files[start_idx - 1][0])
+                #if self.slide is True:
+                index_prev = self.get_index_from_file_name(files[start_idx - 1][0])
+
 
                 # Jump 3 at a time
 
@@ -201,148 +235,154 @@ class LoadData(object):
                 temp_sequence_length = self.image_sequence_length
 
                 for idx in range(start_idx, start_idx + self.image_sequence_length):
-                    if skip == True and random.randint(0,100) < 5:
-                        idx_skip = idx + 1
-                        while idx_skip < (start_idx + temp_sequence_length + 1):
-                            start_sequence_file.append(files[idx_skip][0])
-                            print(idx_skip)
-                            # increment samples in sequence counter
-                            sample_sequence_counter += 1
+                    #print(idx)
+                    t_delta = 0.0
 
-                            # save image in the current sequence
-                            image = Image.open(source_dir_path_complete + files[idx_skip][0])
-                            image.thumbnail((self.image_width, self.image_height), Image.ANTIALIAS)
-                            image = np.asarray(image, dtype="int32")
-                            sequence[0][sample_sequence_counter - 1] = image
 
-                            # set true the sequence complete flag
-                            sequence_complete = True
+                    #if(idx == start_idx):
+                    #print(files[idx][0])
+                    start_sequence_file.append(files[idx - 1][0])
+                    #print(df_y[df_y.index[df_y['image'] == str(files[idx][0])]])
 
-                            # last
-                            idx_skip = idx_skip + 1
-                    else:
-                        #if(idx == start_idx):
-                        #print(files[idx][0])
-                        start_sequence_file.append(files[idx][0])
-                        #print(df_y[df_y.index[df_y['image'] == str(files[idx][0])]])
+                    # get index of current image
+                    index_curr = self.get_index_from_file_name(files[idx][0])
 
-                        # get timestamp of current image
-                        timestamp_curr = self.get_timestamp_from_file_name(files[idx][0])
+                    timestamp_curr = self.get_timestamp_from_file_name(files[idx][0], source_dir_path_complete)
+                    timestamp_prev = self.get_timestamp_from_file_name(files[idx - 1][0], source_dir_path_complete)
 
-                        # compute time elapsed since the previous image timestamp
-                        delta = timestamp_curr - timestamp_prev
+                    # compute time elapsed since the previous image index
+                    delta = index_curr - index_prev
+                    t_delta = timestamp_curr - timestamp_prev
+                    #pos_l_delta = pos_l[idx] - pos_l[idx-1]
+                    #print(pos_l_delta)
 
-                        # save current timestamp
-                        timestamp_prev = timestamp_curr
+                    # save current index
+                    index_prev = index_curr
 
-                        # check if the elapsed time is plausible
-                        if delta < 0:
-                            print('Implausible timestamp. Image happened in the past (before the previous one). Skip sequence')
-                            # Use start_idx as this will be the reference filename that will be appended to start_sequence_file
-                            print(files[start_idx][0])
-                            remove_implausible_list.append(files[start_idx][0])
-                            print("")
 
-                            # set the current IDX as the start point for the next sequence
-                            start_idx = idx
-                            sequence_complete = False
+                    # check if the elapsed time is plausible
+                    if delta  < 0:
+                        print('Implausible index. Image happened in the past (before the previous one). Skip sequence')
+                        # Use start_idx as this will be the reference filename that will be appended to start_sequence_file
+                        print(files[start_idx-1][0])
+                        remove_implausible_list.append(files[start_idx - 1][0])
+                        print("")
 
-                            #y = np.delete(y, 1, 0)
-                            # drop current sequence since the images are not consecutive
-                            break
+                        # set the current IDX as the start point for the next sequence
+                        #start_idx = idx
+                        sequence_complete = False
 
-                        # check if the timestamp did not jumped more than 300 ms
-                        if delta > max_timestamp_delta:
-                            print('Timestamp jump. Drop current sequence')
+                        #y = np.delete(y, 1, 0)
+                        # drop current sequence since the images are not consecutive
+                        break
 
-                            # set the current IDX as the start point for the next sequence
-                            start_idx = idx
-                            print('Timestamp interrupted at: ', timestamp_curr)
-                            print('Delta timestamp is : ', delta / 1000000, ' sec')
-                            sequence_complete = False
-                            # drop current sequence since the imageces are not consecutive
-                            break
+                    # check if the timestamp did not jumped more than 200 ms
+                    if t_delta  > 0.25:
+                        print('index jump. Drop current sequence')
+                        print(files[start_idx - 1][0])
+                        #remove_implausible_list.append(files[start_idx][0])
+                        #for seq_i in range(sample_sequence_counter):
+                        remove_implausible_list.append(files[start_idx - 1][0])
 
-                        # increment samples in sequence counter
-                        sample_sequence_counter += 1
+                        print('index interrupted at: ', timestamp_curr)
+                        print('Delta index is : ', t_delta , ' sec')
+                        sequence_complete = False
+                        # drop current sequence since the imageces are not consecutive
+                        break
 
-                        # save image in the current sequence
-                        image = Image.open(source_dir_path_complete + files[idx][0])
-                        image.thumbnail((self.image_width, self.image_height), Image.ANTIALIAS)
-                        image = np.asarray(image, dtype="int32")
-                        sequence[0][sample_sequence_counter - 1] = image
+                    # increment samples in sequence counter
+                    sample_sequence_counter += 1
+                    #timestamp_prev = timestamp_curr
 
-                        # set true the sequence complete flag
-                        sequence_complete = True
-                        t_delta_tmp += delta
+                    # save image in the current sequence
+                    image = Image.open(source_dir_path_complete + files[idx][0])
+                    image.thumbnail((self.image_width, self.image_height), Image.ANTIALIAS)
+                    image = np.asarray(image, dtype="int32")
+                    sequence[0][sample_sequence_counter - 1] = image
 
-                #
-                t_delta_final = t_delta_tmp / self.image_sequence_length
-                t_delta_list.append(t_delta_final)
+                    # set true the sequence complete flag
+                    sequence_complete = True
+
+                # BREAK to here
+                current = files[start_idx - 1][0]
 
                 # slide the start for the next sequence with 1 position
                 if self.slide == True:
                     start_idx += 1
+                elif sequence_complete == False:
+                    if idx < (int(end_list[j]) - self.image_sequence_length):
+                        start_idx = start_idx + self.image_sequence_length
+                        #remove_flag == True
+                    else:
+                        start_idx = idx + 1
+                        print("working")
                 # slide the start for the next sequence with the processed samples till now (like jump to the next 10 samples)
-                else:
+                elif self.slide == False:
                     start_idx = idx + 1
 
-                if sequence_complete is True:
-                    # skip first sequence to create offset with trajectory
-                    if first_time == True:
-                        #print("got here")
-                        if self.slide == False:
-                            first_time = False
-                        elif self.slide == True:
-                            first_slides_count += 1
-                            if first_slides_count <= self.image_sequence_length:
-                                first_time = False
-                    elif first_time == False:
-                        sequences = np.concatenate((sequences, sequence), axis=0)
-                        sequence_output = np.zeros(shape=(1, self.number_of_classes))
-                        #sequence_output[0][class_idx] = 1
-                        #y = np.concatenate((y, sequence_output), axis=0)
-                        sequences_counter += 1
+                if sequence_complete == True:
+
+                    sequence_list.append(current)
+                    sequences = np.concatenate((sequences, sequence), axis=0)
+                    sequence_output = np.zeros(shape=(1, self.number_of_classes))
+                    #sequence_output[0][class_idx] = 1
+                    #y = np.concatenate((y, sequence_output), axis=0)
+                    sequences_counter += 1
 
                 # refresh the sequence for the next series
+
                 sequence = np.zeros(shape=(1, self.image_sequence_length, self.image_height,
                                            self.image_width, self.image_channels))
 
 
-            #print(final_sequences.shape[0])
-            #print("start_sequence_file")
-            #print(start_sequence_file)
-            #print("remove_implausible_list")
-            #print(remove_implausible_list)
             # list comprehension to remove items from one list using another
+            #remove_implausible_list.append(files[start_idx][0])
             if remove_implausible_list != []:
-                print("removing")
+                #print("removing")
                 final_sequence_file = [x for x in start_sequence_file if x not in remove_implausible_list]
             else:
                 final_sequence_file = start_sequence_file
 
 
-            final_sequence_file_popped = final_sequence_file[:-self.image_sequence_length]
-            #print(final_sequence_file_popped)
-            final_sequences = np.concatenate((final_sequences, sequences), axis=0)
+            #print(remove_implausible_list)
 
-
-            #print("final_sequence_file")
             #print(final_sequence_file)
 
-            # Any filenames left over that do not correspond with this list must be dropped
-            # to insure dimensionality is correct
-            #print(df_y.head())
-            #print(df_y.shape[0])
-        #print(len(final_sequence_file_popped))
+            df_tmp = df_y[df_y['image'].isin(final_sequence_file)]
+
+
+
+            df_tmp = df_tmp[:-1]
+            if df_y_process.empty:
+                df_y_process = df_tmp
+            else:
+                df_y_process = pd.concat([df_y_process, df_tmp])
+
+
+            #t_delta_list = t_delta_list[:-self.image_sequence_length]
+            #print(final_sequence_file_popped)
+            final_sequences = np.concatenate((final_sequences, np.delete(sequences, 1, 0)), axis=0)
+
+
+        df_y = df_y_process
+        indeces = df_y[df_y['y2'].astype(float) > 20].index.tolist()
+        df_y = df_y[df_y['y2'].astype(float) <= 20]
+        final_sequences = np.delete(final_sequences, indeces, 0)
+
+        df_seq = pd.DataFrame(sequence_list)
+        df_seq.to_csv('seq.csv')
+        df_y.to_csv('traj.csv')
+        #df_vel_l = df_vel_l[df_vel_l['image'].isin(final_sequence_file_popped)]
+        #df_vel_a = df_vel_a[df_vel_a['image'].isin(final_sequence_file_popped)]
         #print(df_y.shape[0])
-        print(t_delta_list)
-
-        df_y = df_y[df_y['image'].isin(final_sequence_file_popped)]
-        #print(df_y.shape[0])
-        y = df_y.iloc[:, 2:].to_numpy()
 
 
+        #sys.exit()
+        y = df_y.iloc[:, 1:].to_numpy()
+        #vel_l = vel_l[:, 1:]
+        #vel_a = vel_a[:, 1:]
+        #print(t_delta_list)
+        #sys.exit()
         #print(y.shape[0])
         #print(y)
         # Test
@@ -354,7 +394,7 @@ class LoadData(object):
             print("   Time deltas dim." + str(len(t_delta_list)))
             print(" ")
             sys.exit()
-        return final_sequences, y, t_delta_list
+        return final_sequences, y
 
     def load_lstm_data(self, folder):
         class_idx = 0
@@ -385,13 +425,13 @@ class LoadData(object):
             print('Found :', nr_of_found_samples)
 
             if folder == 'training':
-                self.X_train, self.Y_train, self.t_delta_train = self.get_input_sequences(self.X_train, self.Y_train,
+                self.X_train, self.Y_train = self.get_input_sequences(self.X_train, self.Y_train,
                                                                       class_idx, f + '/', files)
             elif folder == 'testing':
-                self.X_test, self.Y_test, self.t_delta_test = self.get_input_sequences(self.X_test, self.Y_test,
+                self.X_test, self.Y_test = self.get_input_sequences(self.X_test, self.Y_test,
                                                                     class_idx, f + '/', files)
             elif folder == 'validation':
-                self.X_valid, self.Y_valid, self.t_delta_valid =  self.get_input_sequences(self.X_valid, self.Y_valid,
+                self.X_valid, self.Y_valid = self.get_input_sequences(self.X_valid, self.Y_valid,
                                                                       class_idx, f + '/', files)
             class_idx += 1
 
@@ -480,6 +520,7 @@ class LoadData(object):
         #image_sequence_length = (self.number_of_classes + 2 )/2
 
         self.Y_train, self.Y_test, self.Y_valid = LoadTraj.getTraj(self.number_of_classes, self.slide)
+        print(self.Y_train)
         print(" ")
         print("Trajectory information Loaded (pre-processing)")
         print("-----------------------------")
@@ -504,22 +545,24 @@ class LoadData(object):
         # We do this by slicing last row of our X data and first row of our Y data
 
 
-        if self.shuffle == True:
-            self.X_train, self.Y_train = self.shuffler(self.X_train, self.Y_train)
-            self.X_test, self.Y_test = self.shuffler(self.X_test, self.Y_test)
-            self.X_valid, self.Y_valid = self.shuffler(self.X_valid, self.Y_valid)
+        #if self.shuffle == True:
+        #    self.X_train, self.Y_train = self.shuffler(self.X_train, self.Y_train)
+        #    self.X_test, self.Y_test = self.shuffler(self.X_test, self.Y_test)
+        #    self.X_valid, self.Y_valid = self.shuffler(self.X_valid, self.Y_valid)
 
         # Should just scale using training
         self.ymin = np.amin(self.Y_train)
         self.ymax = np.amax(self.Y_train)
 
         def normalizer(array, min, max):
-            return (array - min)/ (max - min)
+           return (array - min)/ (max - min)
 
         self.Y_train = normalizer(self.Y_train, self.ymin, self.ymax)
         self.Y_test = normalizer(self.Y_test, self.ymin, self.ymax)
         self.Y_valid = normalizer(self.Y_valid, self.ymin, self.ymax)
 
+        #print(unravel_index(self.Y_train.argmax(), self.Y_train.shape))
+        #sys.exit()
         # We know 0 min and 255 max so no need to find max and min, just hardcode this
         self.X_train = normalizer(self.X_train, 0, 255)
         self.X_test = normalizer(self.X_test, 0, 255)
@@ -577,9 +620,16 @@ class LoadData(object):
         self.check_dir('./data_sets/lstm_sliding')
 
     @staticmethod
-    def get_timestamp_from_file_name(filename):
-        end_of_timestamp_index = filename.find('_')
-        timestamp = int(filename[:end_of_timestamp_index])
+    def get_index_from_file_name(filename):
+        end_of_index = filename.find('_')
+        index = int(filename[:end_of_index])
+
+        return index
+
+    @staticmethod
+    def get_timestamp_from_file_name(filename, path):
+        # path has last '/' added to it when called...
+        timestamp = os.path.getmtime(str(path + filename))
 
         return timestamp
 

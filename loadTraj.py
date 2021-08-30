@@ -32,15 +32,18 @@ class LoadTraj:
             index_list = []
             #print(df.index[344])
             seq_len = int((number_of_classes + 2) /2)
+            df['Index'] = df['ImageName'].str.split('_', 0).str[0]
+            #print(df['Index'])
 
             for filename in filenames:
                 end_of_timestamp_index = filename.find('_')
                 timestamp = int(filename[:end_of_timestamp_index])
                 # TODO need a way to find lowest id in folder
-                index_list.append(timestamp - 40)
+                index_list.append(str(timestamp))
 
             if folder == "training":
-                df_training = df.loc[df.index[index_list]]
+                #df_training = df.loc[df.index[index_list]]
+                df_training = df[df['Index'].isin(index_list)]
                 print("Training df shape:"+str(df_training.shape))
                 df_training = df_training.sort_values(by="ImageName", key=lambda x: np.argsort(index_natsorted(df_training["ImageName"])))
                 p = df_training.to_numpy()
@@ -49,11 +52,13 @@ class LoadTraj:
                 #l3 = l3_objective(p, seq_len)
                 #Obj_train = np.column_stack((l1, l2, l3))
                 if slide == True:
-                    Y_train = np.array(trajectory_plus_one(p, seq_len))
+                    Y_train = trajectory_plus_one(p, seq_len)
                 else:
-                    Y_train = np.array(trajectory_seq_len(p, seq_len))
+                    Y_train = trajectory_seq_len(p, seq_len)
             elif folder == "testing":
-                df_testing = df.loc[df.index[index_list]]
+                #df_testing = df.loc[df.index[index_list]]
+                df_testing = df[df['Index'].isin(index_list)]
+                print(df_testing)
                 print("Testing df shape:"+str(df_testing.shape))
                 df_testing = df_testing.sort_values(by="ImageName", key=lambda x: np.argsort(index_natsorted(df_testing["ImageName"])))
                 p = df_testing.to_numpy()
@@ -62,12 +67,13 @@ class LoadTraj:
                 #l3 = l3_objective(p, seq_len)
                 #Obj_test = np.column_stack((l1, l2, l3))
                 if slide == True:
-                    Y_test = np.array(trajectory_plus_one(p, seq_len))
+                    Y_test = trajectory_plus_one(p, seq_len)
                 else:
-                    Y_test = np.array(trajectory_seq_len(p, seq_len))
+                    Y_test = trajectory_seq_len(p, seq_len)
             elif folder == "validation":
-                df_validation = df.loc[df.index[index_list]]
-                print("Validation df shape:"+str(df_validation.shape))
+                #df_validation = df.loc[df.index[index_list]]
+                df_validation = df[df['Index'].isin(index_list)]
+                #print("Validation df shape:"+str(df_validation.shape))
                 df_validation = df_validation.sort_values(by="ImageName", key=lambda x: np.argsort(index_natsorted(df_validation["ImageName"])))
                 p = df_validation.to_numpy()
                 #l1 = l1_objective(p, seq_len)
@@ -75,9 +81,9 @@ class LoadTraj:
                 #l3 = l3_objective(p, seq_len)
                 #Obj_validation = np.column_stack((l1, l2, l3))
                 if slide == True:
-                    Y_validation = np.array(trajectory_plus_one(p, seq_len))
+                    Y_validation = trajectory_plus_one(p, seq_len)
                 else:
-                    Y_validation = np.array(trajectory_seq_len(p, seq_len))
+                    Y_validation = trajectory_seq_len(p, seq_len)
             else:
                 print("folder does not exist in list of folders, required list: " + folder)
                 sys.exit()
@@ -87,19 +93,24 @@ class LoadTraj:
 
 def trajectory_seq_len(p, seq_len):
     traj = []
+
     for i in range(math.floor(len(p)/seq_len)):
         j = seq_len * i
         coord = []
+        vel_long_tmp = []
+        vel_angl_tmp = []
         # Trajectory designed so ego vehicle is always at [0, 0]
         x0 = p[j][0]
         y0 = p[j][1]
         j = seq_len * i
         # The image filename will be dropped later in get_input_sequences()
         #coord.append(str(p[j][5]).strip('_image.png'))
-        coord.append(p[j][5])
-        #print(p[j][5])
+        coord.append(p[j][6])
+
+        #print(p[j][-1])
         for k in range(1, seq_len):
-            #print(k)
+            # previous index is -1 of current
+
             xk = p[j+k][0]
             yk = p[j+k][1]
             # These may be neg
@@ -108,7 +119,7 @@ def trajectory_seq_len(p, seq_len):
             coord.append(x)
             coord.append(y)
         traj.append(coord)
-    return traj
+    return np.array(traj)
 
 def trajectory_plus_one(p, seq_len):
     traj = []
@@ -119,19 +130,21 @@ def trajectory_plus_one(p, seq_len):
         y0 = p[i][1]
         # The image filename will be dropped later in get_input_sequences()
         #coord.append(str(p[j][5]).strip('_image.png'))
-        coord.append(p[i][5])
+        coord.append(p[i][6])
         #print(p[j][5])
         for k in range(1, seq_len):
-            #print(k)
-            xk = p[i+k][0]
-            yk = p[i+k][1]
-            # These may be neg
-            x = xk - x0
-            y = yk - y0
-            coord.append(x)
-            coord.append(y)
+            # previous index is -1 of current
+            if ((int(p[j+k][-1]) - int(p[j+k-1][-1])) == 1):
+                #print(k)
+                xk = p[i+k][0]
+                yk = p[i+k][1]
+                # These may be neg
+                x = xk - x0
+                y = yk - y0
+                coord.append(x)
+                coord.append(y)
         traj.append(coord)
-    return traj
+    return np.array(traj)
 
 #
 # # Eqn 3. NeuroTrajectory distance-based feedback

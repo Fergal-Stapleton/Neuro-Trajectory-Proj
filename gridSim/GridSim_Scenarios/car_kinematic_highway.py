@@ -7,6 +7,7 @@ import numpy as np
 import random
 import time
 import os
+from datetime import datetime
 
 class HighwaySimulator(Simulator):
 
@@ -406,18 +407,23 @@ class HighwaySimulator(Simulator):
 
             all_highway_traffic = self.highway_traffic
 
+            #a = datetime.now()
+
             # RECORD TAB
             if self.record_data is True:
                 self.record_data_function(index_image, all_highway_traffic)
+
+            #b = datetime.now()
+            #print(b - a)
 
             index_image = index_image + 1
 
             pygame.display.update()
             #fpsClock.tick(FPS)
-            self.clock.tick(5)
+            self.clock.tick(50)
             #print(fpsClock)
             #print(self.clock.tick(self.ticks))
-            time.sleep(0.02)
+            #time.sleep(0.002)
 
         pygame.quit()
 

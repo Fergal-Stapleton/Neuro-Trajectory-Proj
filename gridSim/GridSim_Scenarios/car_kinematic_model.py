@@ -11,7 +11,7 @@ from keras import models
 from print_activations import init_activations_display_window
 from read_write_trajectory import write_data, write_state_buf, resize_image, save_frame
 import cv2
-
+from datetime import datetime
 
 class Simulator:
     def __init__(self, screen, screen_width, screen_height,
@@ -101,7 +101,7 @@ class Simulator:
         self.ppu = 16
         self.exit = False
         self.clock = pygame.time.Clock()
-        self.ticks = 20
+        self.ticks = 50
         self.dt = None
 
         self.cbox_front_sensor = Checkbox(self.screen_width - 200, 10, 'Enable front sensor', self.sensors)
@@ -181,18 +181,23 @@ class Simulator:
         :param display_obstacle_on_sensor:
         :return:
         """
+
         # act_mask is a separate image where you can only see what the sensor sees
         center_rect = Collision.center_rect(self.screen_width, self.screen_height)
         mid_of_front_axle = Collision.point_rotation(self.car, -1, 16, center_rect)
 
         radius = 300
+
         arc_points = get_arc_points(mid_of_front_axle, radius, radians(90 + self.car.angle), radians(270 + self.car.angle),
                                     self.sensor_size)
 
+
         offroad_edge_points = []
 
+        a = datetime.now()
         for end_point in arc_points:
             points_to_be_checked = list(get_equidistant_points(mid_of_front_axle, end_point, 25))
+
 
             check = False
 
@@ -205,6 +210,9 @@ class Simulator:
                 offroad_edge_points.append(end_point)
             else:
                 offroad_edge_points.append(line_point)
+
+
+
 
         for index in range(0, len(arc_points)):
             if offroad_edge_points[index] == arc_points[index]:
@@ -220,6 +228,7 @@ class Simulator:
                     # Grid filled
                     pygame.draw.circle(self.screen, (255, 0, 0), offroad_edge_points[index], 1)
                     pygame.draw.circle(act_mask, (255, 0, 0), offroad_edge_points[index], 1)
+
 
     def optimized_rear_sensor(self, act_mask, display_obstacle_on_sensor=False):
         """
@@ -241,6 +250,7 @@ class Simulator:
         offroad_edge_points = []
 
         for end_point in arc_points:
+            #print(get_equidistant_points(mid_of_rear_axle, end_point, 25))
             points_to_be_checked = list(get_equidistant_points(mid_of_rear_axle, end_point, 25))
 
             check = False
@@ -527,16 +537,21 @@ class Simulator:
                    float(round(self.car.velocity.x, 3)), float(round(self.car.angular_velocity, 3)), image_name, all_highway_traffic]
 
         # Save state_buf
+
         write_state_buf(self.state_buf_path, actions)
 
+
         # Save replay
-        write_data(self.replay_data_path, self.car.position, self.car.angle)
+        #write_data(self.replay_data_path, self.car.position, self.car.angle)
 
         activation_mask = pygame.Surface((self.screen_width, self.screen_height))
 
+        #a = datetime.now()
         activation_mask.fill((0, 0, 0))
         self.optimized_front_sensor(activation_mask, display_obstacle_on_sensor=True)
         self.optimized_rear_sensor(activation_mask, display_obstacle_on_sensor=True)
+        #b = datetime.now()
+        #print(b-a)
 
         #save_sensor_frame_path="save_sensor_frame_path"
         save_sensor_frame_path='D:/Main/GitHub/Neuro-Trajectory/Neuro-Trajectory-Proj/gridSim/GridSim_Scenarios/save_sensor_frame_path_a'
@@ -546,9 +561,12 @@ class Simulator:
         if os.path.exists(save_sensor_frame_path) is False:
             os.makedirs(save_sensor_frame_path)
 
+
         activation_sub = activation_mask.subsurface(image_rect)
         activation_sub = resize_image(activation_sub, (200, 200))
+
         save_frame(activation_sub, image_name, save_sensor_frame_path)
+
 
     def custom(self, *args):
         """

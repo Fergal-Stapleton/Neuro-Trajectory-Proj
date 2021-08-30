@@ -18,8 +18,8 @@ class GeneticAlgorithm:
         self.data_set = data_set
         self.params = params
         self.model = model
-        self.population = 10
-        self.generations = 5
+        self.population = 20
+        self.generations = 10
 
         self.create_dirs()
 
@@ -57,13 +57,10 @@ class GeneticAlgorithm:
             params_csv.append(genome.x_max)
             params_csv.append(genome.y_err)
             params_csv.append(genome.y_max)
-            params_csv.append(genome.fitness_vector[0])
-            params_csv.append(genome.fitness_vector[1])
-            params_csv.append(genome.fitness_vector[2])
-            if (math.isnan(genome.fitness_vector[0]) == True or math.isnan(genome.fitness_vector[1]) == True or math.isnan(genome.fitness_vector[2]) == True):
-                print(genome.fitness_vector[0])
-                print(genome.fitness_vector[1])
-                print(genome.fitness_vector[2])
+            for i in range(len(genome.fitness_vector)):
+                params_csv.append(genome.fitness_vector[i])
+                if (math.isnan(genome.fitness_vector[i]) == True):
+                    print(genome.fitness_vector[i])
 
             row = params_csv
             writer.writerow(row)
@@ -93,6 +90,7 @@ class GeneticAlgorithm:
         table_head.append("x_max")
         table_head.append("y_err")
         table_head.append("y_max")
+
         table_head.append("obj1")
         table_head.append("obj2")
         table_head.append("obj3")

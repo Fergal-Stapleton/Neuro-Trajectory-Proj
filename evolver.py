@@ -153,22 +153,22 @@ class Evolver():
 
         #at this point, there is zero guarantee that the genome is actually unique
         # Randomly mutate one gene
-        if self.mutate_chance > random.random():
-            genome1.mutate_one_gene()
+        #if self.mutate_chance > random.random():
+        #    genome1.mutate_one_gene()
 
-        if self.mutate_chance > random.random():
-                genome2.mutate_one_gene()
+        #if self.mutate_chance > random.random():
+        #    genome2.mutate_one_gene()
 
         #do we have a unique child or are we just retraining one we already have anyway?
-        while self.master.is_duplicate(genome1):
-            genome1.mutate_one_gene()
+        #while self.master.is_duplicate(genome1):
+        #    genome1.mutate_one_gene()
 
-        self.master.add_genome(genome1)
+        #self.master.add_genome(genome1)
 
-        while self.master.is_duplicate(genome2):
-            genome2.mutate_one_gene()
+        #while self.master.is_duplicate(genome2):
+        #    genome2.mutate_one_gene()
 
-        self.master.add_genome(genome2)
+        #self.master.add_genome(genome2)
 
         children.append(genome1)
         children.append(genome2)
@@ -189,6 +189,79 @@ class Evolver():
             (list): The evolved population of networks
 
         """
+        self.ids.increase_Gen()
+
+        new_pop = pop
+        np_idx = 0
+
+        for np_idx in range(0, len(pop), 2):
+            if self.mutate_chance > random.random():
+                # This allows proper selection pressure for crossover operation
+                parents = random.sample(range(len(pop)-1), k=5)
+                tournament_idx = bool_non_dom_sol_df[parents]
+
+                #print(parents)
+                #print(tournament_idx)
+                sorted_parents = [x for _, x in sorted(zip(tournament_idx, parents), reverse=True)]
+                # dont want to always select lowest indeces so will shuffle non dominated indexex
+                true_range = int(sum(tournament_idx))
+                # if they are all false (dominated) dont try shuffle
+                if true_range > 0:
+                    srt_tmp = sorted_parents[0:true_range]
+                    random.shuffle(srt_tmp)
+                    for i in range(true_range):
+                        sorted_parents[i] = srt_tmp[i]
+
+                #print(sorted_parents)
+                #sys.exit()
+
+                i_male = sorted_parents[0]
+                i_female = sorted_parents[1]
+
+                male = pop[i_male]
+                female = pop[i_female]
+
+                # Recombine and mutate
+                babies = self.breed(male, female)
+                # the babies are guaranteed to be novel
+
+                new_pop[np_idx] = babies[0]
+                new_pop[np_idx+1] = babies[1]
+
+        np_idx = 0
+        for genome in pop:
+            if self.mutate_chance > random.random():
+                gtc = copy.deepcopy(genome)
+
+                #while self.master.is_duplicate(gtc):
+                gtc.mutate_one_gene()
+
+                gtc.set_generation( self.ids.get_Gen() )
+
+                new_pop[np_idx] = gtc
+                np_idx += 1
+                self.master.add_genome(gtc)
+
+        combined_pop = pop.append(new_pop)
+
+        # Get scores for each genome
+        graded = [(self.fitness(genome), genome) for genome in combined_pop]
+        solutionsTuple = [(self.fitnessMO(genome), genome) for genome in combined_pop]
+        solutions = [x[0] for x in solutionsTuple]
+        genome_hash = [x[1] for x in solutionsTuple]
+        obj1 = []
+        obj2 = []
+        obj3 = []
+        accVec = []
+        hash = []
+        for i in range(len(solutions)):
+            obj1.append(solutions[i][0])
+            obj2.append(solutions[i][1])
+            obj3.append(solutions[i][2])
+            accVec.append(acc[i])
+            hash.append(genome_hash[i])
+
+        costs = np.column_stack((np.array(obj1), np.array(obj2), np.array(obj3)))
 
 
     # will rename evolve at some stage
@@ -234,6 +307,7 @@ class Evolver():
         df = pd.DataFrame(costs, columns=['obj1', 'obj2', 'obj3'])
         df['hash'] = hash
         df['non_dominated'] = bool_non_dom_sol_df
+        non_dom = sum(bool_non_dom_sol_df)
 
         #non_dom_df = costs[bool_non_dom_sol_df,:]
         #print(bool_non_dom_sol_df)
@@ -268,59 +342,93 @@ class Evolver():
         #sys.exit(0)
 
         # Get the number we want to keep unchanged for the next cycle.
-        retain_length = int(len(graded)*self.retain)
+        elitist_length = int(len(graded)*self.retain)
+        new_gen_length = len(pop) - int(len(graded)*self.retain)
 
         # In this first step, we keep the 'top' X percent (as defined in self.retain)
         # We will not change them, except we will update the generation
-        new_generation = graded[:retain_length]
-        print("graded[:retain_length]: " + str(graded[:retain_length]))
-        print("graded[retain_length:]: " + str(graded[retain_length:]))
-        # For the lower scoring ones, randomly keep some anyway.
+        elitist_retain = graded[:elitist_length]
+        # use this to fill pop after mutation and crossover
+        remainder = graded[new_gen_length:]
+        # since our fitness is binary we'll only select non-dominated, i.e these are our fitest
+        # Also our pop size is low so reampling indeces multiple times is not nesecary
+        # This is not true tournament selection as such
+        non_dom_selection = graded[:non_dom]
+        #print("graded[:retain_length]: " + str(elitist_retain))
+        #print("graded[new_gen_length:]: " + str(remainder))
+        # "For the lower scoring ones, randomly keep some anyway.
         # This is wasteful, since we _know_ these are bad, so why keep rescoring them without modification?
-        # At least we should mutate them
-        for genome in graded[retain_length:]:
-            if self.random_select > random.random():
+        # At least we should mutate them"
+
+        # 2021/08/16 FS: original code is incorrect.
+        #    1) makes our pop size variable which is Wrong (This means our pop of networks will keep growing!!!)
+        #    2) even if an indiv. has previously been used but was not deemed fit, this does not mean it wont be useful for crossover
+        #       at a later stage
+        #    3) even though duplicates are undesirable, only evolving the worst individuals in the population is just wrong
+
+        new_pop = pop
+        np_idx = 0
+
+        for np_idx in range(0, len(pop), 2):
+            if self.mutate_chance > random.random():
+                # This allows proper selection pressure for crossover operation
+                parents = random.sample(range(len(pop)-1), k=5)
+                tournament_idx = bool_non_dom_sol_df[parents]
+
+                #print(parents)
+                #print(tournament_idx)
+                sorted_parents = [x for _, x in sorted(zip(tournament_idx, parents), reverse=True)]
+                # dont want to always select lowest indeces so will shuffle non dominated indexex
+                true_range = int(sum(tournament_idx))
+                # if they are all false (dominated) dont try shuffle
+                if true_range > 0:
+                    srt_tmp = sorted_parents[0:true_range]
+                    random.shuffle(srt_tmp)
+                    for i in range(true_range):
+                        sorted_parents[i] = srt_tmp[i]
+
+                #print(sorted_parents)
+                #sys.exit()
+
+                i_male = sorted_parents[0]
+                i_female = sorted_parents[1]
+
+                male = pop[i_male]
+                female = pop[i_female]
+
+                # Recombine and mutate
+                babies = self.breed(male, female)
+                # the babies are guaranteed to be novel
+
+                new_pop[np_idx] = babies[0]
+                new_pop[np_idx+1] = babies[1]
+
+        np_idx = 0
+        for genome in pop:
+            if self.mutate_chance > random.random():
                 gtc = copy.deepcopy(genome)
 
-                while self.master.is_duplicate(gtc):
-                    gtc.mutate_one_gene()
+                #while self.master.is_duplicate(gtc):
+                gtc.mutate_one_gene()
 
                 gtc.set_generation( self.ids.get_Gen() )
-                new_generation.append(gtc)
+
+                new_pop[np_idx] = gtc
+                np_idx += 1
                 self.master.add_genome(gtc)
 
-        # Now find out how many spots we have left to fill.
-        ng_length = len(new_generation)
-        desired_length = len(pop) - ng_length
-        children = []
-        print('desired length: ' + str(desired_length))
 
-        # Add children, which are bred from pairs of remaining (i.e. very high or lower scoring) genomes.
-        while len(children) < desired_length:
-            # Get a random mom and dad, but, need to make sure they are distinct
-            # print(ng_length)
-            parents = random.sample(range(ng_length-1), k=2)
+        new_generation = random.sample(new_pop, len(pop))
 
-            i_male = parents[0]
-            i_female = parents[1]
+        for i in range(elitist_length):
+            new_generation[i] = elitist_retain[i]
 
-            male = new_generation[i_male]
-            female = new_generation[i_female]
 
-            # Recombine and mutate
-            babies = self.breed(male, female)
-            # the babies are guaranteed to be novel
+        #print("pop and new gen lengths")
+        #print('old pop: ' + str(len(pop)))
+        #print('new pop: ' + str(len(new_generation)))
 
-            # Add the children one at a time.
-            for baby in babies:
-                children.append(baby)
-
-        print('children: ' + str(len(children)))
-        new_generation.extend(children)
-
-        print("pop and new gen lengths")
-        print('old pop: ' + str(len(pop)))
-        print('new pop: ' + str(len(new_generation)))
+        # Original approach failed this
         assert len(pop) == len(new_generation)
 
         #sys.exit()
