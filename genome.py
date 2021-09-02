@@ -29,7 +29,15 @@ class Genome():
         self.y_err = 0.0
         self.y_max = 0.0
         self.fitness_vector = [0.0, 0.0, 0.0]
+        #self.fitness_vector = [0.0, 0.0]
         self.all_possible_genes = all_possible_genes
+        self.rank = None
+        self.crowding_distance = None
+        self.domination_count = None
+        self.dominated_solutions = None
+        self.features = None
+        #self.fronts = []
+        #self.objectives = None
 
         # (dict): represents actual genome parameters
         self.geneparam = geneparam
@@ -42,6 +50,15 @@ class Genome():
             self.hash = 0
         else:
             self.update_hash()
+
+    def dominates(self, other_individual):
+        and_condition = True
+        or_condition = False
+        # This is a nice way of doing it, logically sound
+        for first, second in zip(self.fitness_vector, other_individual.fitness_vector):
+            and_condition = and_condition and first <= second
+            or_condition = or_condition or first < second
+        return (and_condition and or_condition)
 
     def update_hash(self):
         """
@@ -102,7 +119,81 @@ class Genome():
         self.geneparam = geneparam
         self.update_hash()
 
+    def train_and_score_simplified(self, model_train, dataset, path, i):
+        logging.info("Getting training samples")
+        logging.info("Compling Keras model")
 
+        batch_size = self.geneparam['batch_size']
+        epochs = self.geneparam['epochs']
+
+        image_sequence_length = int((dataset.number_of_classes + 2) /2)
+        parameters = list()
+        file_name = ''
+
+        for p in self.all_possible_genes:
+            if p is 'batch_size':
+                continue
+            elif p is 'epochs':
+                continue
+            else:
+                parameters.append(self.geneparam[p])
+                file_name += str(p) + '_'
+
+        print(parameters)
+        print("")
+        input_shape = np.shape(dataset.X_train)
+        model = model_train(input_shape, parameters)
+
+        parameters.append(self.geneparam['batch_size'])
+        parameters.append(self.geneparam['epochs'])
+        # Helper: Early stopping.
+        early_stopper = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=5, verbose=0, mode='auto')
+        # FS: 18/07/2021: This is problematic as it is set up for classification
+        #                 I will comment out line 49 and 50 from training_history_plot
+        history = TrainingHistoryPlot(path, dataset, parameters, i)
+
+        model.fit(dataset.X_train, dataset.Y_train,
+                  batch_size=batch_size,
+                  epochs=epochs,
+                  verbose=1,
+                  validation_data=(dataset.X_valid, dataset.Y_valid),
+                  callbacks=[early_stopper, history]
+                  )
+
+        model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '.h5')
+        score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
+        prediction = model.predict(dataset.X_test)
+
+
+        #dataset.Y_train
+        def denormalize(array, max, min):
+            return array*(max - min) + min
+
+
+        # While our prediction is done solely on our validation set (test is withheld), our objective valculation should be
+        # based on the training set
+        #     1) We would bias our evolutionary stratregy if we used validation
+        #     2) Our 3rd objective requires the training data
+        obj_training = model.predict(dataset.X_train)
+        obj_training_reverse_scale = denormalize(obj_training, dataset.ymax, dataset.ymin)
+
+
+        # This needs to be found out from GridSim or by diff'n timestamps of images
+        t_delta = 0.2
+        max_vel = 32.5 # 130 / 5 = 32.5
+        l1 = l1_objective(obj_training_reverse_scale, image_sequence_length)
+        l2 = l2_objective(obj_training_reverse_scale, t_delta, dataset.slide, image_sequence_length)
+        l3 = l3_objective(obj_training_reverse_scale, t_delta, max_vel, dataset.slide, image_sequence_length)
+        if math.isnan(l1) or  math.isnan(l2) or  math.isnan(l3):
+            print("One or more objectives were stored as NaN, exiting...")
+            sys.exit()
+
+        L = [l1, l2, l3]
+        #L = [l2, l3]
+
+        K.clear_session()
+
+        return L
 
     def train_and_score(self, model_train, dataset, path, i):
         logging.info("Getting training samples")
@@ -204,17 +295,18 @@ class Genome():
         max_vel = 32.5 # 130 / 5 = 32.5
         l1 = l1_objective(obj_training_reverse_scale, image_sequence_length)
         l2 = l2_objective(obj_training_reverse_scale, t_delta, dataset.slide, image_sequence_length)
-        #l3 = l3_objective(obj_training_reverse_scale, t_delta, max_vel, dataset.slide, image_sequence_length)
+        l3 = l3_objective(obj_training_reverse_scale, t_delta, max_vel, dataset.slide, image_sequence_length)
         if math.isnan(l1) or  math.isnan(l2):
             print("One or more objectives were stored as NaN, exiting...")
             sys.exit()
 
         # to get true velocity average x5
         #l3 = l3 * 5
-        L = [l1, l2]
+        L = [l1, l2, l3]
+        #L = [l2, l3]
         print(L)
         print(pred_acc)
-        sys.exit()
+        #sys.exit()
         K.clear_session()
         # we do not care about keeping any of this in memory -
         # we just need to know the final scores and the architecture
@@ -270,15 +362,27 @@ class Genome():
         if self.accuracy == 0.0:
             self.accuracy, self.x_err, self.x_max, self.y_err, self.y_max, self.fitness_vector = self.train_and_score(model, trainingset, path, i)
 
+    def train_short(self, model, trainingset, path, i):
+        #don't bother retraining ones we already trained
+        if self.accuracy == 0.0:
+            self.fitness_vector = self.train_and_score_simplified(model, trainingset, path, i)
+
     def print_genome(self):
         """Print out a genome."""
         self.print_geneparam()
         logging.info("Acc: %.2f%%" % (self.accuracy * 100))
-        logging.info("Fitness Vector: %d %d %d" % (self.fitness_vector[0], self.fitness_vector[1], self.fitness_vector[2]))
+        if len(self.fitness_vector) == 3:
+            logging.info("Fitness Vector: %d %d %d" % (self.fitness_vector[0], self.fitness_vector[1], self.fitness_vector[2]))
+        elif len(self.fitness_vector) == 2:
+            logging.info("Fitness Vector: %d %d" % (self.fitness_vector[0], self.fitness_vector[1]))
         logging.info("UniID: %d" % self.u_ID)
         logging.info("Mom and Dad: %d %d" % (self.parents[0], self.parents[1]))
         logging.info("Gen: %d" % self.generation)
         logging.info("Hash: %s" % self.hash)
+        # wont be applicable in naive approach but print out anyway
+        logging.info("Dom. Rank: %s" % str(self.rank))
+        logging.info("Dom. count: %s" % str(self.domination_count))
+        logging.info("Crowd. Dist: %s" % str(self.crowding_distance))
 
     def print_genome_ma(self):
         """Print out a genome."""

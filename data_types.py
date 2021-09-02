@@ -37,9 +37,9 @@ PARAMETERS_LSTM = {'hidden_units': [8, 16, 32, 64],
                    'loss_function': ['mean_squared_error', 'mean_squared_logarithmic_error', 'mean_absolute_error',],
                    'optimizer': ['rmsprop', 'nadam', 'sgd', 'adagrad', 'adadelta', 'adam', 'adamax'],
                    'lstm_cells':[1, 2, 3, 4],
-                   'dropout': [0.5, 0.7, 0.9],
-                   'cnn_flattened_layer_1': [64, 128, 256, 512, 1024],
-                   'cnn_flattened_layer_2': [64, 128, 256, 512, 1024],
+                   'dropout': [0.1, 0.2, 0.3],
+                   'cnn_flattened_layer_1': [128, 256, 512, 1024],
+                   'cnn_flattened_layer_2': [128, 256, 512, 1024],
                    #'learning_rates': [1.00, 0.1, 0.01, 0.001, 0.0001]
                    }
 

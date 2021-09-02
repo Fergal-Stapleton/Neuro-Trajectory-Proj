@@ -39,6 +39,10 @@ class Evolver():
         self.retain = retain
         self.random_select = random_select
         self.mutate_chance = mutate_chance
+        self.fronts = []
+        self.pop = []
+        self.num_of_tour_particips = 3
+        self.tournament_prob = 0.9
 
         #set the ID gen
         self.ids = IDgen()
@@ -80,6 +84,7 @@ class Evolver():
                 self.master.add_genome(genome)
 
             i += 1
+            #self.fronts = [[]]
 
         return pop
 
@@ -175,8 +180,74 @@ class Evolver():
 
         return children
 
+    def fast_nondominated_sort(self, genomes):
+        self.fronts = [[]]
+        for genome in genomes:
+            genome.domination_count = 0
+            genome.dominated_solutions = []
+            for other_genome in genomes:
+                if genome.dominates(other_genome):
+                    genome.dominated_solutions.append(other_genome)
+                elif other_genome.dominates(genome):
+                    genome.domination_count += 1
+            if genome.domination_count == 0:
+                genome.rank = 0
+                self.fronts[0].append(genome)
+        i = 0
+        while len(self.fronts[i]) > 0:
+            temp = []
+            for genome in self.fronts[i]:
+                for other_genome in genome.dominated_solutions:
+                    other_genome.domination_count -= 1
+                    if other_genome.domination_count == 0:
+                        other_genome.rank = i+1
+                        temp.append(other_genome)
+            i = i+1
+            self.fronts.append(temp)
+
+    def calculate_crowding_distance(self, front):
+        if len(front) > 0:
+            solutions_num = len(front)
+            for individual in front:
+                individual.crowding_distance = 0
+
+            for m in range(len(front[0].fitness_vector)):
+                front.sort(key=lambda individual: individual.fitness_vector[m])
+                front[0].crowding_distance = 10**9
+                front[solutions_num-1].crowding_distance = 10**9
+                m_values = [individual.fitness_vector[m] for individual in front]
+                scale = max(m_values) - min(m_values)
+                if scale == 0: scale = 1
+                for i in range(1, solutions_num-1):
+                    front[i].crowding_distance += (front[i+1].fitness_vector[m] - front[i-1].fitness_vector[m])/scale
+
+    def crowding_operator(self, individual, other_individual):
+        print(individual.rank)
+        print(other_individual.rank)
+        if (individual.rank < other_individual.rank) or \
+            ((individual.rank == other_individual.rank) and (individual.crowding_distance > other_individual.crowding_distance)):
+            return 1
+        else:
+            return -1
+
+    def tournament(self, population):
+        participants = random.sample(population, self.num_of_tour_particips)
+        best = None
+        for participant in participants:
+            print(len(participants))
+            print(participant)
+            print(best)
+            if (best == None) or (self.crowding_operator(participant, best) == 1 and self.choose_with_prob(self.tournament_prob)):
+                best = participant
+        return best
+
+    def choose_with_prob(self, prob):
+        if random.random() <= prob:
+            return True
+        return False
+
     # https://github.com/baopng/NSGA-II/blob/29a6ec33f87b32a7fb2596091e1a51c897106e7b/nsga2/utils.py#L24
-    def nsga2(self, pop):
+    def combine_pop(self, pop):
         """Evolve a population of genomes using NSGA-II. Steps involved
             1) Create new pop using corssover and mutation
             2) Combine
@@ -191,45 +262,25 @@ class Evolver():
         """
         self.ids.increase_Gen()
 
-        new_pop = pop
+        new_pop = copy.deepcopy(pop)
         np_idx = 0
 
-        for np_idx in range(0, len(pop), 2):
-            if self.mutate_chance > random.random():
-                # This allows proper selection pressure for crossover operation
-                parents = random.sample(range(len(pop)-1), k=5)
-                tournament_idx = bool_non_dom_sol_df[parents]
+        for np_idx in range(0, len(pop)-1, 2):
+            # This allows proper selection pressure for crossover operation
+            parent1 = self.tournament(pop)
+            parent2 = parent1
+            while parent1 == parent2:
+                parent2 = self.tournament(pop)
 
-                #print(parents)
-                #print(tournament_idx)
-                sorted_parents = [x for _, x in sorted(zip(tournament_idx, parents), reverse=True)]
-                # dont want to always select lowest indeces so will shuffle non dominated indexex
-                true_range = int(sum(tournament_idx))
-                # if they are all false (dominated) dont try shuffle
-                if true_range > 0:
-                    srt_tmp = sorted_parents[0:true_range]
-                    random.shuffle(srt_tmp)
-                    for i in range(true_range):
-                        sorted_parents[i] = srt_tmp[i]
+            # Recombine and mutate
+            babies = self.breed(parent1, parent2)
+            # the babies are guaranteed to be novel
 
-                #print(sorted_parents)
-                #sys.exit()
-
-                i_male = sorted_parents[0]
-                i_female = sorted_parents[1]
-
-                male = pop[i_male]
-                female = pop[i_female]
-
-                # Recombine and mutate
-                babies = self.breed(male, female)
-                # the babies are guaranteed to be novel
-
-                new_pop[np_idx] = babies[0]
-                new_pop[np_idx+1] = babies[1]
+            new_pop[np_idx] = babies[0]
+            new_pop[np_idx+1] = babies[1]
 
         np_idx = 0
-        for genome in pop:
+        for genome in new_pop:
             if self.mutate_chance > random.random():
                 gtc = copy.deepcopy(genome)
 
@@ -242,27 +293,9 @@ class Evolver():
                 np_idx += 1
                 self.master.add_genome(gtc)
 
-        combined_pop = pop.append(new_pop)
-
-        # Get scores for each genome
-        graded = [(self.fitness(genome), genome) for genome in combined_pop]
-        solutionsTuple = [(self.fitnessMO(genome), genome) for genome in combined_pop]
-        solutions = [x[0] for x in solutionsTuple]
-        genome_hash = [x[1] for x in solutionsTuple]
-        obj1 = []
-        obj2 = []
-        obj3 = []
-        accVec = []
-        hash = []
-        for i in range(len(solutions)):
-            obj1.append(solutions[i][0])
-            obj2.append(solutions[i][1])
-            obj3.append(solutions[i][2])
-            accVec.append(acc[i])
-            hash.append(genome_hash[i])
-
-        costs = np.column_stack((np.array(obj1), np.array(obj2), np.array(obj3)))
-
+        pop.extend(new_pop)
+        
+        return pop
 
     # will rename evolve at some stage
     def evolve(self, pop):

@@ -143,24 +143,31 @@ def lstm_model(X_train_shape, parameters):
 
     # Add our first convolutional layer
     dgn.add(Conv2D(filters=64,
-                   kernel_size=(7, 7),
+                   kernel_size=(9, 9),
                    strides=(4, 4),
                    padding='valid',
                    data_format='channels_last',
                    input_shape=input_shape[1:],
                    activation='relu',
                    name='conv1'))
-    #dgn.add(BatchNormalization())
-    #dgn.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool1'))
-
-    # Add second convolutional layer.
-    dgn.add(ZeroPadding2D(padding=(2, 2)))
     dgn.add(Conv2D(filters=32,
                           kernel_size=(5, 5),
                           padding='valid',
-                          strides=(1, 1),
+                          strides=(2, 2),
                           activation='relu',
                           name='conv2'))
+    dgn.add(Conv2D(filters=32,
+                        kernel_size=(3, 3),
+                        padding='valid',
+                        strides=(1, 1),
+                        activation='relu',
+                        name='conv3'))
+    dgn.add(Conv2D(filters=32,
+                        kernel_size=(3, 3),
+                        padding='valid',
+                        strides=(1, 1),
+                        activation='relu',
+                        name='conv4'))
     #dgn.add(BatchNormalization())
     #dgn.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool2'))
     dgn.add(Flatten(name='flat'))
@@ -299,7 +306,7 @@ def lstm_model(X_train_shape, parameters):
 
     model.add(Dense(DATA_SET_INFO['num_classes'], activation='relu'))
 
-    model.compile(loss=loss_function, optimizer=optimizer, metrics=['mse'])
+    model.compile(loss=loss_function, optimizer=optimizer, metrics=['mae'])
 
 
     print(model.summary())
@@ -327,7 +334,6 @@ def lstm_test(X_train_shape, parameters):
     # create dgn to train
     dgn = Sequential()
 
-    # Add our first convolutional layer
     dgn.add(Conv2D(filters=64,
                    kernel_size=(9, 9),
                    strides=(4, 4),
@@ -340,21 +346,32 @@ def lstm_test(X_train_shape, parameters):
     #dgn.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool1'))
 
     # Add second convolutional layer.
-    dgn.add(ZeroPadding2D(padding=(2, 2)))
+    #dgn.add(ZeroPadding2D(padding=(2, 2)))
     dgn.add(Conv2D(filters=32,
                           kernel_size=(5, 5),
                           padding='valid',
-                          strides=(1, 1),
+                          strides=(2, 2),
                           activation='relu',
                           name='conv2'))
+    dgn.add(Conv2D(filters=32,
+                        kernel_size=(3, 3),
+                        padding='valid',
+                        strides=(1, 1),
+                        activation='relu',
+                        name='conv3'))
+    dgn.add(Conv2D(filters=32,
+                        kernel_size=(3, 3),
+                        padding='valid',
+                        strides=(1, 1),
+                        activation='relu',
+                        name='conv4'))
     #dgn.add(BatchNormalization())
     #dgn.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool2'))
     dgn.add(Flatten(name='flat'))
-
     # # Add Fully connected ANN
-    dgn.add(Dense(units=552, activation='relu', name='fc6'))
+    dgn.add(Dense(units=256, activation='relu', name='fc6'))
     #dgn.add(Dropout(0.5))
-    dgn.add(Dense(units=256, activation='relu', name='fc7', ))
+    dgn.add(Dense(units=128, activation='relu', name='fc7', ))
     #dgn.add(Dropout(0.5))
     # dgn.add(Dense(units=int(num_categories), activation='softmax', name='fc8'))
 
@@ -363,18 +380,18 @@ def lstm_test(X_train_shape, parameters):
 
 
 
-    model.add((LSTM(62, return_sequences=True)))
-    #model.add(Dropout(dropout_parameter))
-    model.add((LSTM((62 * 2), return_sequences=True)))
-    #model.add(Dropout(dropout_parameter))
-    model.add((LSTM((62 * 3), return_sequences=False)))
-    #model.add(Dropout(dropout_parameter))
+    model.add((LSTM(64, return_sequences=True)))
+    model.add(Dropout(0.1))
+    model.add((LSTM((64 * 2), return_sequences=True)))
+    model.add(Dropout(0.1))
+    model.add((LSTM((64 * 3), return_sequences=False)))
+    model.add(Dropout(0.1))
 
 
 
     model.add(Dense(DATA_SET_INFO['num_classes'], activation='relu'))
 
-    model.compile(loss='mean_squared_logarithmic_error', optimizer='nadam', metrics=['mae'])
+    model.compile(loss='mean_squared_logarithmic_error', optimizer='sgd', metrics=['mae'])
 
 
     print(model.summary())

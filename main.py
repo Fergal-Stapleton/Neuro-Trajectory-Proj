@@ -87,6 +87,8 @@ def main():
     MODEL_NAME = 'lstm_sliding'
     GA = 'yes'
     GS = 'no'
+    #mo_type = 'naive'
+    mo_type = 'nsga-ii'
 
     time_str = time.strftime("%Y-%m-%d_%H %M")
     path = PATH_SAVE_FIG + str(time_str)
@@ -115,11 +117,11 @@ def main():
 
     if GA == 'yes':
         optim = GeneticAlgorithm(path, parameters, model_function, data_set)
-        optim.run()
+        optim.run(mo_type)
 
     if GS == 'yes':
         optim = GridSearch(path, parameters, model_function, data_set)
-        optim.run()
+        optim.run(mo_type)
 
 
 if __name__ == '__main__':
