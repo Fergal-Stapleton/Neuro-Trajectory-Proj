@@ -87,8 +87,8 @@ def main():
     MODEL_NAME = 'lstm_sliding'
     GA = 'yes'
     GS = 'no'
-    #mo_type = 'naive'
-    mo_type = 'nsga-ii'
+    mo_type = 'naive'
+    #mo_type = 'nsga-ii'
 
     time_str = time.strftime("%Y-%m-%d_%H %M")
     path = PATH_SAVE_FIG + str(time_str)
@@ -102,8 +102,8 @@ def main():
     elif (MODEL_NAME == 'lstm_bucketing') or \
          (MODEL_NAME == 'lstm_sliding'):
         parameters = PARAMETERS_LSTM
-        model_function = model.lstm_model
-        #model_function = model.lstm_test
+        #model_function = model.lstm_model
+        model_function = model.lstm_test
 
     print('\nLoad dataset...')
     data_set = load_data(MODEL_NAME)

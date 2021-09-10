@@ -1,44 +1,75 @@
 # NeuroTrajectory
-## A Neuroevolutionary Approach to Local State Trajectory Learning for Autonomous Vehicles
 
-This repository accompanies the paper *NeuroTrajectory: A Neuroevolutionary Approach to Local State Trajectory Learning in Autonomous Driving*.
-
-Autonomous vehicles are controlled today either based on sequences of decoupled perception-planning-action operations, either based on End2End or Deep Reinforcement Learning (DRL) systems. Deep learning solutions are subject to several limitations (e.g. they only compute the best driving action for the next upcoming sampling time, in a discrete form: turn left, turn right, accelerate, break). The learning method uses a single-objective loss function and the backpropagation algorithm for learning a direct mapping of the input data to discrete steering commands. To address these issues, we introduce *NeuroTrajectory*, which is a multi-objective neuroevolutionary approach to local trajectory learning for autonomous driving, where the desired trajectory of the ego-vehicle is estimated over a finite prediction horizon by a *perception-planning* deep neural network. We propose an approach which uses genetic algorithms for training a population of deep neural networks, where each network individual is evaluated based on a multi-objective fitness vector, with the purpose of establishing a so-called *Pareto front* of optimal deep neural networks. The performance of an individual is given by a fitness vector composed of three elements. Each element describes the vehicle's travel path, lateral velocity and longitudinal speed, respectively. The same network structure can be trained on synthetic, as well as on real-world data sequences. We have benchmarked our system against a baseline Dynamic Windows Approach (DWA), as well as against an End2End learning method.
-
-![Alt text](images/pareto_optimization.png?raw=true)
 
 ## Installation
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. 
+The following instructions will help to run and update code
 
 ### Prerequisites
 
-Clone the repository:
-```bash
-$ git clone https://github.com/RovisLab/NeuroTrajectory.git
-```
-
-The packages needed for install can be found inside requirements.txt: 
+The packages needed for install can be found inside requirements.yml.
+To avoid potential conflicts it is best to install the environment using load_conda.
 
 ```
-pip install -r requirements.txt
+conda env create -f environment.yml
 ```
+
+To activate and deactivate GPU environement run the following commands
+
+```
+conda activate nnt-gpu
+conda deactivate
+```
+
+If running on ICHEC don't activate the environment as this is handled in sbatch file, however the environment still needs to be set up and newest version of CUDA installed
+
+```
+conda install -c conda-forge cudatoolkit-dev
+conda install -c conda-forge cudnn=8.2.1
+```
+
+The cudatoolkit is quite large ~20gb so this may be an issue as the ICHEC home directory limit is 25gb
 
 ### Running the code
 
-The script which runs the main function is
+The script which runs the Neuroevolutionary code is
 
 ```
-main.py
+python main.py
 ```
+
+If collecting new data an updated version of GridSim has been included that records highway data.
+First navigate to directory to run code
+
+```
+cd gridSim/GridSim_Scenarios
+```
+
+GridSim has a separate list of dependencies. If installing these on nnt-gpu it is best to try installing through conda to avoid conflicts. If not use pip.
+
+```
+cat requirements.txt
+```
+
+To run a simulation:
+
+```
+python car_kinematic_highway.py
+```
+
+This populates the folder and updated teh state_buf.txt. The state_buf.txt contains the positional output and needs to nbe moved to ./images/ folder (at the top directory) when training models.
 
 ### Training a model
 
-data_types.py contains the configuration parameters for the 3 possible types of networks: DGN, LSTM and Conv3D
+Note: Though there is code for DGN, LSTM and Conv3D only the LSTM code has been updated. It has been hardcoded to run in main.py
 
-Modify DATA_SET_INFO/data_set_path to point to the training data (split in training, validation and testing).
+data_types.py contains the configuration parameters. num_classes should match the number of coordinates:
 
-Already prepared data and stored in numpy format will be provided as .zip.
+'num_classes': 8,
+'classes_name': ['x2', 'y2', 'x3', 'y3', 'x4', 'y4', 'x5', 'y5']
+
+If loading new data remove .npy files from data_sets/lstm_sliding
+
 
 At the end of each training, plots and .csv files are generated in ./train/(date_time)/
 

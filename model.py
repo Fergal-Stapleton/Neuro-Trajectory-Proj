@@ -132,7 +132,7 @@ def lstm_model(X_train_shape, parameters):
     print('X_train shape: ', X_train_shape)
     print('Final layer', DATA_SET_INFO['num_classes'])
 
-    input_shape = (DATA_SET_INFO['image_channels'], DATA_SET_INFO['image_width'],
+    input_shape = (int((DATA_SET_INFO['num_classes']+ 2) /2), DATA_SET_INFO['image_width'],
                    DATA_SET_INFO['image_height'], DATA_SET_INFO['image_channels'])
 
     logging.info("Architecture:%s,%s,%s,%s,%s" % (hidden_units, dropout_parameter, loss_function, optimizer, lstm_cells))
@@ -174,9 +174,9 @@ def lstm_model(X_train_shape, parameters):
 
     # # Add Fully connected ANN
     dgn.add(Dense(units=cnn_flattened_layer_1, activation='relu', name='fc6'))
-    #dgn.add(Dropout(0.))
+    dgn.add(Dropout(dropout))
     dgn.add(Dense(units=cnn_flattened_layer_2, activation='relu', name='fc7', ))
-    #dgn.add(Dropout(dropout))
+    dgn.add(Dropout(dropout))
     # dgn.add(Dense(units=int(num_categories), activation='softmax', name='fc8'))
 
     model = Sequential()
@@ -325,7 +325,7 @@ def lstm_test(X_train_shape, parameters):
     print('X_train shape: ', X_train_shape)
     print('Final layer', DATA_SET_INFO['num_classes'])
 
-    input_shape = (DATA_SET_INFO['image_channels'], DATA_SET_INFO['image_width'],
+    input_shape = (int((DATA_SET_INFO['num_classes']+ 2) /2), DATA_SET_INFO['image_width'],
                    DATA_SET_INFO['image_height'], DATA_SET_INFO['image_channels'])
 
     #logging.info("Architecture:%s,%s,%s,%s,%s" % (hidden_units, dropout_parameter, loss_function, optimizer, lstm_cells))
@@ -369,31 +369,24 @@ def lstm_test(X_train_shape, parameters):
     #dgn.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool2'))
     dgn.add(Flatten(name='flat'))
     # # Add Fully connected ANN
-    dgn.add(Dense(units=256, activation='relu', name='fc6'))
-    #dgn.add(Dropout(0.5))
-    dgn.add(Dense(units=128, activation='relu', name='fc7', ))
-    #dgn.add(Dropout(0.5))
+    dgn.add(Dense(units=1024, activation='relu', name='fc6'))
+    dgn.add(Dropout(0.1))
+    dgn.add(Dense(units=512, activation='relu', name='fc7', ))
+    dgn.add(Dropout(0.1))
     # dgn.add(Dense(units=int(num_categories), activation='softmax', name='fc8'))
 
     model = Sequential()
     model.add(TimeDistributed(dgn, input_shape=input_shape))
 
-
-
-    model.add((LSTM(64, return_sequences=True)))
-    model.add(Dropout(0.1))
-    model.add((LSTM((64 * 2), return_sequences=True)))
-    model.add(Dropout(0.1))
-    model.add((LSTM((64 * 3), return_sequences=False)))
-    model.add(Dropout(0.1))
-
-
+    model.add((LSTM((32), return_sequences=False)))
+    model.add(Dropout(0.3))
+    #model.add(Dropout(0.1))
 
     model.add(Dense(DATA_SET_INFO['num_classes'], activation='relu'))
 
-    model.compile(loss='mean_squared_logarithmic_error', optimizer='sgd', metrics=['mae'])
+    model.compile(loss='mean_squared_logarithmic_error', optimizer='rmsprop', metrics=['mae'])
 
-
+    print("*** Test Model ***")
     print(model.summary())
 
 

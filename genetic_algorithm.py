@@ -18,8 +18,8 @@ class GeneticAlgorithm:
         self.data_set = data_set
         self.params = params
         self.model = model
-        self.population = 10
-        self.generations = 5
+        self.population = 25
+        self.generations = 2
 
         self.create_dirs()
 
@@ -79,7 +79,7 @@ class GeneticAlgorithm:
 
         for genome in genomes:
             # FS: going to get objectives out here
-            genome.train(self.model, self.data_set, self.path, i)
+            genome.train(self.model, self.data_set, self.path, i, self.generations)
 
             parameters = list()
             params_csv = list()
@@ -95,10 +95,10 @@ class GeneticAlgorithm:
             params_csv.append(genome.x_max)
             params_csv.append(genome.y_err)
             params_csv.append(genome.y_max)
-            for i in range(len(genome.fitness_vector)):
-                params_csv.append(genome.fitness_vector[i])
-                if (math.isnan(genome.fitness_vector[i]) == True):
-                    print(genome.fitness_vector[i])
+            for k in range(len(genome.fitness_vector)):
+                params_csv.append(genome.fitness_vector[k])
+                if (math.isnan(genome.fitness_vector[k]) == True):
+                    print(genome.fitness_vector[k])
 
             row = params_csv
             writer.writerow(row)
@@ -112,7 +112,7 @@ class GeneticAlgorithm:
 
         for genome in genomes:
             # FS: going to get objectives out here
-            genome.train_short(self.model, self.data_set, self.path, i)
+            genome.train_short(self.model, self.data_set, self.path, i, self.generations)
 
 
         pbar.close()
@@ -139,11 +139,11 @@ class GeneticAlgorithm:
         table_head.append("x_max")
         table_head.append("y_err")
         table_head.append("y_max")
-        if (genomes[0].fitness_vector == 3):
+        if (len(genomes[0].fitness_vector) == 3):
             table_head.append("obj1")
             table_head.append("obj2")
             table_head.append("obj3")
-        elif (genomes[0].fitness_vector == 2):
+        elif (len(genomes[0].fitness_vector) == 2):
             table_head.append("obj1")
             table_head.append("obj2")
         row = table_head
@@ -213,11 +213,11 @@ class GeneticAlgorithm:
         table_head.append("x_max")
         table_head.append("y_err")
         table_head.append("y_max")
-        if (genomes[0].fitness_vector == 3):
+        if (len(genomes[0].fitness_vector)== 3):
             table_head.append("obj1")
             table_head.append("obj2")
             table_head.append("obj3")
-        elif (genomes[0].fitness_vector == 2):
+        elif (len(genomes[0].fitness_vector) == 2):
             table_head.append("obj1")
             table_head.append("obj2")
         row = table_head

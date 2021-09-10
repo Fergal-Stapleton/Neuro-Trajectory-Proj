@@ -118,6 +118,8 @@ def trajectory_seq_len(p, seq_len):
             y = yk - y0
             coord.append(x)
             coord.append(y)
+            #x0 = xk
+            #y0 = yk
         traj.append(coord)
     return np.array(traj)
 
@@ -134,15 +136,14 @@ def trajectory_plus_one(p, seq_len):
         #print(p[j][5])
         for k in range(1, seq_len):
             # previous index is -1 of current
-            if ((int(p[j+k][-1]) - int(p[j+k-1][-1])) == 1):
-                #print(k)
-                xk = p[i+k][0]
-                yk = p[i+k][1]
-                # These may be neg
-                x = xk - x0
-                y = yk - y0
-                coord.append(x)
-                coord.append(y)
+
+            #print(k)
+            xk = p[i+k][0]
+            yk = p[i+k][1]
+            x = xk - x0
+            y = yk - y0
+            coord.append(x)
+            coord.append(y)
         traj.append(coord)
     return np.array(traj)
 

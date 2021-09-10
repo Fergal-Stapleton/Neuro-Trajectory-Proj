@@ -14,9 +14,9 @@ DATA_SET_INFO = {#data_set_path': '/ichec/home/users/fergals/neuroTraj/Neuro-Tra
                  'image_width': 128,
                  'image_channels': 3,
                  'image_depth': 1,
-                 'num_classes': 4,
+                 'num_classes': 8,
                  # x1 and y1 are alway zero so no need to predict
-                 'classes_name': ['x2', 'y2', 'x3', 'y3']
+                 'classes_name': ['x2', 'y2', 'x3', 'y3', 'x4', 'y4', 'x5', 'y5']
                  #'classes_name': ['city', 'country_road', 'highway', 'parking_lot', 'traffic_jam']
                  }
 
@@ -34,12 +34,12 @@ PARAMETERS_LSTM = {'hidden_units': [8, 16, 32, 64],
                    'dropout_parameter': [0.2, 0.25, 0.3, 0.35, 0.4, 0.5],
                    'batch_size': [8, 16, 24, 32],
                    'epochs': [10, 20, 30, 40, 50],
-                   'loss_function': ['mean_squared_error', 'mean_squared_logarithmic_error', 'mean_absolute_error',],
+                   'loss_function': ['mean_squared_error', 'mean_squared_logarithmic_error', 'mean_absolute_error'],
                    'optimizer': ['rmsprop', 'nadam', 'sgd', 'adagrad', 'adadelta', 'adam', 'adamax'],
                    'lstm_cells':[1, 2, 3, 4],
-                   'dropout': [0.1, 0.2, 0.3],
-                   'cnn_flattened_layer_1': [128, 256, 512, 1024],
-                   'cnn_flattened_layer_2': [128, 256, 512, 1024],
+                   'dropout': [0.05, 0.1, 0.15, 0.2, 0.25],
+                   'cnn_flattened_layer_1': [256, 512, 768, 1024],
+                   'cnn_flattened_layer_2': [256, 512, 768, 1024],
                    #'learning_rates': [1.00, 0.1, 0.01, 0.001, 0.0001]
                    }
 

@@ -53,8 +53,10 @@ class LoadData(object):
         self.slide = False
         self.shuffle = True
         # Max and Min - need to revert to real coordinates
-        self.ymin = -2.7186277031692385
-        self.ymax = 19.73575844802872
+        #-5.66668848861903 Max X:51.31507599420365
+        #-2.7186277031692385 max = 19.73575844802872
+        self.ymin = -1.632622394172697
+        self.ymax = 33.11593567960517
 
         self.load = {"dgn": self.load_dgn_data,
                      "conv3d": self.load_conv3d_data,
@@ -189,8 +191,6 @@ class LoadData(object):
             start_sequence_file = []
             # Create a list of implausaible sequences to remove at the end
             remove_implausible_list = []
-
-
 
             #if self.type is 'lstm_sliding':
             #    slide = True
@@ -365,9 +365,9 @@ class LoadData(object):
 
 
         df_y = df_y_process
-        indeces = df_y[df_y['y2'].astype(float) > 20].index.tolist()
-        df_y = df_y[df_y['y2'].astype(float) <= 20]
-        final_sequences = np.delete(final_sequences, indeces, 0)
+        #indeces = df_y[df_y['y2'].astype(float) > 20].index.tolist()
+        #df_y = df_y[df_y['y2'].astype(float) <= 20]
+        #final_sequences = np.delete(final_sequences, indeces, 0)
 
         df_seq = pd.DataFrame(sequence_list)
         df_seq.to_csv('seq.csv')

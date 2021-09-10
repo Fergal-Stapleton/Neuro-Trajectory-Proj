@@ -119,7 +119,7 @@ class Genome():
         self.geneparam = geneparam
         self.update_hash()
 
-    def train_and_score_simplified(self, model_train, dataset, path, i):
+    def train_and_score_simplified(self, model_train, dataset, path, i, gen_max):
         logging.info("Getting training samples")
         logging.info("Compling Keras model")
 
@@ -160,15 +160,26 @@ class Genome():
                   callbacks=[early_stopper, history]
                   )
 
-        model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '.h5')
+        if(gen_max == int(i+1)):
+            model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '.h5')
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
         prediction = model.predict(dataset.X_test)
 
-
+        real = dataset.Y_test
         #dataset.Y_train
         def denormalize(array, max, min):
             return array*(max - min) + min
 
+        #real_rescale = denormalize(real, dataset.ymax, dataset.ymin)
+        #prediction_rescale = denormalize(prediction, dataset.ymax, dataset.ymin)
+
+        #np.set_printoptions(threshold=np.inf)
+        #print(real_rescale)
+        #print(prediction_rescale)
+
+        pred_acc = self.rmse(prediction, real, image_sequence_length)
+        x_err, x_max = self.x_error(prediction, real, image_sequence_length)
+        y_err, y_max = self.y_error(prediction, real, image_sequence_length)
 
         # While our prediction is done solely on our validation set (test is withheld), our objective valculation should be
         # based on the training set
@@ -176,7 +187,8 @@ class Genome():
         #     2) Our 3rd objective requires the training data
         obj_training = model.predict(dataset.X_train)
         obj_training_reverse_scale = denormalize(obj_training, dataset.ymax, dataset.ymin)
-
+        np.set_printoptions(threshold=np.inf)
+        print(obj_training_reverse_scale)
 
         # This needs to be found out from GridSim or by diff'n timestamps of images
         t_delta = 0.2
@@ -188,14 +200,14 @@ class Genome():
             print("One or more objectives were stored as NaN, exiting...")
             sys.exit()
 
-        L = [l1, l2, l3]
+        L = [pred_acc, l2, l3]
         #L = [l2, l3]
 
         K.clear_session()
 
-        return L
+        return pred_acc, x_err, x_max, y_err, y_max, L
 
-    def train_and_score(self, model_train, dataset, path, i):
+    def train_and_score(self, model_train, dataset, path, i, gen_max):
         logging.info("Getting training samples")
         logging.info("Compling Keras model")
 
@@ -213,7 +225,7 @@ class Genome():
                 continue
             else:
                 parameters.append(self.geneparam[p])
-                file_name += str(p) + '_'
+                file_name += str(self.geneparam[p]) + '_'
 
         print(parameters)
         print("")
@@ -254,7 +266,10 @@ class Genome():
                   callbacks=[early_stopper, history]
                   )
 
-        model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '.h5')
+        #print(file_name)
+        if(gen_max == int(i+1)):
+            model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '.h5')
+        #sys.exit()
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
         prediction = model.predict(dataset.X_test)
 
@@ -289,7 +304,6 @@ class Genome():
         np.set_printoptions(threshold=np.inf)
         #print(obj_training_reverse_scale )
 
-
         # This needs to be found out from GridSim or by diff'n timestamps of images
         t_delta = 0.2
         max_vel = 32.5 # 130 / 5 = 32.5
@@ -302,7 +316,7 @@ class Genome():
 
         # to get true velocity average x5
         #l3 = l3 * 5
-        L = [l1, l2, l3]
+        L = [pred_acc, l2, l3]
         #L = [l2, l3]
         print(L)
         print(pred_acc)
@@ -357,15 +371,15 @@ class Genome():
         y_max = np.max(acc_list)
         return y_err, y_max
 
-    def train(self, model, trainingset, path, i):
+    def train(self, model, trainingset, path, i, gen_max):
         #don't bother retraining ones we already trained
         if self.accuracy == 0.0:
-            self.accuracy, self.x_err, self.x_max, self.y_err, self.y_max, self.fitness_vector = self.train_and_score(model, trainingset, path, i)
+            self.accuracy, self.x_err, self.x_max, self.y_err, self.y_max, self.fitness_vector = self.train_and_score(model, trainingset, path, i, gen_max)
 
-    def train_short(self, model, trainingset, path, i):
+    def train_short(self, model, trainingset, path, i, gen_max):
         #don't bother retraining ones we already trained
         if self.accuracy == 0.0:
-            self.fitness_vector = self.train_and_score_simplified(model, trainingset, path, i)
+            self.accuracy, self.x_err, self.x_max, self.y_err, self.y_max, self.fitness_vector = self.train_and_score_simplified(model, trainingset, path, i, gen_max)
 
     def print_genome(self):
         """Print out a genome."""

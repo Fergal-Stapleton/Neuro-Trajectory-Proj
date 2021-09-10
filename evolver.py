@@ -276,8 +276,9 @@ class Evolver():
             babies = self.breed(parent1, parent2)
             # the babies are guaranteed to be novel
 
-            new_pop[np_idx] = babies[0]
-            new_pop[np_idx+1] = babies[1]
+            if np_idx < len(pop):
+                new_pop[np_idx] = babies[0]
+                new_pop[np_idx+1] = babies[1]
 
         np_idx = 0
         for genome in new_pop:
@@ -294,7 +295,7 @@ class Evolver():
                 self.master.add_genome(gtc)
 
         pop.extend(new_pop)
-        
+
         return pop
 
     # will rename evolve at some stage
@@ -402,7 +403,7 @@ class Evolver():
         new_pop = pop
         np_idx = 0
 
-        for np_idx in range(0, len(pop), 2):
+        for np_idx in range(0, len(pop)-1, 2):
             if self.mutate_chance > random.random():
                 # This allows proper selection pressure for crossover operation
                 parents = random.sample(range(len(pop)-1), k=5)
@@ -433,8 +434,9 @@ class Evolver():
                 babies = self.breed(male, female)
                 # the babies are guaranteed to be novel
 
-                new_pop[np_idx] = babies[0]
-                new_pop[np_idx+1] = babies[1]
+                if np_idx < len(pop):
+                    new_pop[np_idx] = babies[0]
+                    new_pop[np_idx+1] = babies[1]
 
         np_idx = 0
         for genome in pop:
