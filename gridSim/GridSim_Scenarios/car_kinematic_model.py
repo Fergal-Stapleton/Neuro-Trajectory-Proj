@@ -554,18 +554,24 @@ class Simulator:
         #print(b-a)
 
         #save_sensor_frame_path="save_sensor_frame_path"
-        save_sensor_frame_path='D:/Main/GitHub/Neuro-Trajectory/Neuro-Trajectory-Proj/gridSim/GridSim_Scenarios/save_sensor_frame_path_a'
+        save_sensor_frame_path='D:/Main/GitHub/Neuro-Trajectory/Neuro-Trajectory-Proj/gridSim/GridSim_Scenarios/save_sensor_frame_path'
+        save_sim_frame_path='D:/Main/GitHub/Neuro-Trajectory/Neuro-Trajectory-Proj/gridSim/GridSim_Scenarios/save_simulator_frame_path'
 
         image_rect = pygame.Rect((440, 160), (400, 400))
 
         if os.path.exists(save_sensor_frame_path) is False:
             os.makedirs(save_sensor_frame_path)
 
+        if os.path.exists(save_sim_frame_path) is False:
+            os.makedirs(save_sim_frame_path)
+
 
         activation_sub = activation_mask.subsurface(image_rect)
+        sensor_sub = self.screen.subsurface(image_rect)
         activation_sub = resize_image(activation_sub, (200, 200))
 
         save_frame(activation_sub, image_name, save_sensor_frame_path)
+        save_frame(sensor_sub, image_name, save_sim_frame_path)
 
 
     def custom(self, *args):
