@@ -1,5 +1,6 @@
 """Entry point to evolving the neural network. Start here."""
 from __future__ import print_function
+import sys
 from training_history_plot import TrainingHistoryPlot
 from keras.callbacks import EarlyStopping
 from genetic_algorithm import GeneticAlgorithm
@@ -22,7 +23,11 @@ def load_data(MODEL_NAME):
                         DATA_SET_INFO['image_width'], DATA_SET_INFO['image_channels'],
                         DATA_SET_INFO['image_depth'], DATA_SET_INFO['num_classes'])
 
-    path_to_npy = './data_sets/' + MODEL_NAME + '/X_train.npy'
+    if data_set.absolute_path_cond == False:
+        path_to_npy = './data_sets/' + MODEL_NAME + '/X_train.npy'
+    else:
+        path_to_npy = data_set.absolute_path + 'data_sets/' + MODEL_NAME + '/X_train.npy'
+
 
     # FS: turn this off for now as it is causing code to fall over
     if os.path.exists(path_to_npy):
@@ -81,17 +86,29 @@ def one_train(path, data_set, model_function, parameters):
 
 
 def main():
+    if len(sys.argv) > 1:
+        run_num = int(sys.argv[1])
+    else:
+        run_num = 0
+    #run_num = int(run_num)
+    print(run_num)
+    random.seed(run_num)
+    np.random.seed(run_num)
     #MODEL_NAME = input("Please introduce model name (dgn, conv3d, lstm_bucketing, lstm_sliding): ")
     #GA = input("Do you want to use genetic algorithm for your model? (yes/no): ")
     #GS = input("Do you want to use grid search for your model? (yes/no): ")
     MODEL_NAME = 'lstm_sliding'
     GA = 'yes'
     GS = 'no'
-    mo_type = 'naive'
+    # NAIVE - RANDOM FILL W/ ACCURACY (not very good but matched GitHub code most closely)
+    #mo_type = 'naive-rand'
+    # NAIVE - TOURNAMENT SELECTION W/ OBJECTIVE AGGREGATE (as described in the NeuroEvolutionary paper)
+    mo_type = 'naive-tournament-select'
+    # NSGA-II
     #mo_type = 'nsga-ii'
 
     time_str = time.strftime("%Y-%m-%d_%H %M")
-    path = PATH_SAVE_FIG + str(time_str)
+    path = PATH_SAVE_FIG + str(time_str) + '_' + str(run_num)
 
     if MODEL_NAME == 'dgn':
         parameters = PARAMETERS_DGN
@@ -116,11 +133,11 @@ def main():
         one_train(path, data_set, model_function, parameters)
 
     if GA == 'yes':
-        optim = GeneticAlgorithm(path, parameters, model_function, data_set)
+        optim = GeneticAlgorithm(path, parameters, model_function, data_set, run_num)
         optim.run(mo_type)
 
     if GS == 'yes':
-        optim = GridSearch(path, parameters, model_function, data_set)
+        optim = GridSearch(path, parameters, model_function, data_set, run_num)
         optim.run(mo_type)
 
 

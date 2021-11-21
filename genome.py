@@ -29,6 +29,8 @@ class Genome():
         self.y_err = 0.0
         self.y_max = 0.0
         self.fitness_vector = [0.0, 0.0, 0.0]
+        #self.model_genome = None
+        #self.model_filepath = None
         #self.fitness_vector = [0.0, 0.0]
         self.all_possible_genes = all_possible_genes
         self.rank = None
@@ -44,6 +46,7 @@ class Genome():
         self.u_ID = u_ID
         self.parents = [mom_ID, dad_ID]
         self.generation = gen
+        self.genome_filename = None
 
         #hash only makes sense when we have specified the genes
         if not geneparam:
@@ -119,7 +122,7 @@ class Genome():
         self.geneparam = geneparam
         self.update_hash()
 
-    def train_and_score_simplified(self, model_train, dataset, path, i, gen_max):
+    def train_and_score_simplified(self, model_train, dataset, path, i, gen_max, run_n):
         logging.info("Getting training samples")
         logging.info("Compling Keras model")
 
@@ -137,7 +140,7 @@ class Genome():
                 continue
             else:
                 parameters.append(self.geneparam[p])
-                file_name += str(p) + '_'
+                file_name += str(self.geneparam[p]) + '_'
 
         print(parameters)
         print("")
@@ -160,8 +163,11 @@ class Genome():
                   callbacks=[early_stopper, history]
                   )
 
-        if(gen_max == int(i+1)):
-            model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '.h5')
+        # Save last gen models
+        #if(gen_max == int(i+1)):
+        self.genome_filename = 'model_' + str(file_name) + '_gen_' + str(i) + '_run_' + str(run_n) + '_' + str(self.u_ID) + '.h5'
+        model.save(filepath = str(path) + '/models/' + self.genome_filename)
+        #filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '_run_' + str(run_n) + '.h5'
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
         prediction = model.predict(dataset.X_test)
 
@@ -207,7 +213,7 @@ class Genome():
 
         return pred_acc, x_err, x_max, y_err, y_max, L
 
-    def train_and_score(self, model_train, dataset, path, i, gen_max):
+    def train_and_score(self, model_train, dataset, path, i, gen_max, run_n):
         logging.info("Getting training samples")
         logging.info("Compling Keras model")
 
@@ -267,8 +273,7 @@ class Genome():
                   )
 
         #print(file_name)
-        if(gen_max == int(i+1)):
-            model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '.h5')
+        model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '_run_' + str(run_n) + '_' + str(self.u_ID) + '.h5')
         #sys.exit()
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
         prediction = model.predict(dataset.X_test)
@@ -371,15 +376,15 @@ class Genome():
         y_max = np.max(acc_list)
         return y_err, y_max
 
-    def train(self, model, trainingset, path, i, gen_max):
+    def train(self, model, trainingset, path, i, gen_max, run_n):
         #don't bother retraining ones we already trained
         if self.accuracy == 0.0:
-            self.accuracy, self.x_err, self.x_max, self.y_err, self.y_max, self.fitness_vector = self.train_and_score(model, trainingset, path, i, gen_max)
+            self.accuracy, self.x_err, self.x_max, self.y_err, self.y_max, self.fitness_vector = self.train_and_score(model, trainingset, path, i, gen_max, run_n)
 
-    def train_short(self, model, trainingset, path, i, gen_max):
+    def train_short(self, model, trainingset, path, i, gen_max, run_n):
         #don't bother retraining ones we already trained
         if self.accuracy == 0.0:
-            self.accuracy, self.x_err, self.x_max, self.y_err, self.y_max, self.fitness_vector = self.train_and_score_simplified(model, trainingset, path, i, gen_max)
+            self.accuracy,self.x_err,self.x_max,self.y_err,self.y_max,self.fitness_vector = self.train_and_score_simplified(model, trainingset, path, i, gen_max, run_n)
 
     def print_genome(self):
         """Print out a genome."""

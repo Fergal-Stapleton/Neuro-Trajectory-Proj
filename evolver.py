@@ -80,6 +80,8 @@ class Evolver():
             pop.append(genome)
 
             # and add to the master list
+
+
             if i > 0:
                 self.master.add_genome(genome)
 
@@ -92,6 +94,11 @@ class Evolver():
     def fitness(genome):
         """Return the accuracy, which is our fitness function."""
         return genome.accuracy
+
+    @staticmethod
+    def fitnessTournamentSelect(genome):
+        """Return aggregation of fitness function"""
+        return sum(genome.fitness_vector) / len(genome.fitness_vector)
 
     @staticmethod
     def fitnessMO(genome):
@@ -216,8 +223,11 @@ class Evolver():
                 front[0].crowding_distance = 10**9
                 front[solutions_num-1].crowding_distance = 10**9
                 m_values = [individual.fitness_vector[m] for individual in front]
+                print('m values')
+                print(m_values)
                 scale = max(m_values) - min(m_values)
-                if scale == 0: scale = 1
+                if scale == 0:
+                    scale = 1
                 for i in range(1, solutions_num-1):
                     front[i].crowding_distance += (front[i+1].fitness_vector[m] - front[i-1].fitness_vector[m])/scale
 
@@ -387,7 +397,12 @@ class Evolver():
         # since our fitness is binary we'll only select non-dominated, i.e these are our fitest
         # Also our pop size is low so reampling indeces multiple times is not nesecary
         # This is not true tournament selection as such
+
+        # TOURNAMENT SELECT - NAIVE AGGREGATE
+
         non_dom_selection = graded[:non_dom]
+
+
         #print("graded[:retain_length]: " + str(elitist_retain))
         #print("graded[new_gen_length:]: " + str(remainder))
         # "For the lower scoring ones, randomly keep some anyway.
@@ -407,6 +422,7 @@ class Evolver():
             if self.mutate_chance > random.random():
                 # This allows proper selection pressure for crossover operation
                 parents = random.sample(range(len(pop)-1), k=5)
+
                 tournament_idx = bool_non_dom_sol_df[parents]
 
                 #print(parents)
@@ -455,9 +471,23 @@ class Evolver():
 
         new_generation = random.sample(new_pop, len(pop))
 
-        for i in range(elitist_length):
-            new_generation[i] = elitist_retain[i]
+        #mo_type = 'naive-rand'
+        # NAIVE - TOURNAMENT SELECTION W/ OBJECTIVE AGGREGATE (as described in the NeuroEvolutionary paper)
+        mo_type = 'naive-tournament-select'
 
+        if mo_type == 'naive-rand':
+            for i in range(elitist_length):
+                new_generation[i] = elitist_retain[i]
+        elif mo_type == 'naive-tournament-select':
+            for i in range(elitist_length):
+                retain1, retain2 = random.choices(pop, k=2)
+                #HERE
+                fit1 = self.fitnessTournamentSelect(retain1)
+                fit2 = self.fitnessTournamentSelect(retain2)
+                if fit1 > fit2:
+                    new_generation[i] = retain1
+                elif fit2 >= fit1:
+                    new_generation[i] = retain2
 
         #print("pop and new gen lengths")
         #print('old pop: ' + str(len(pop)))

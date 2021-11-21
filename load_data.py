@@ -1,11 +1,17 @@
 import numpy as np
 import pandas as pd
+import glob
+import gc
+#import sparse
+from pathlib import Path
 import os
 from PIL import Image
 from loadTraj import LoadTraj
 import sys
 from natsort import index_natsorted
 import random
+#from pympler import asizeof
+
 
 
 def shuffle_in_unison(a, b):
@@ -50,13 +56,22 @@ class LoadData(object):
         self.Obj_test = None
         self.Obj_validation  = None
         # Slide
-        self.slide = False
+        self.slide = True
         self.shuffle = True
+        # Paths condition for ICHEC
+        self.absolute_path_cond = False
+        self.absolute_path = '/ichec/work/nuim01/fergals/neuroTraj2/'
+        #self.absolute_path = '/ichec/work/nuim01/fergals/neuroTraj2/'
+
         # Max and Min - need to revert to real coordinates
+        # tau = 5
         #-5.66668848861903 Max X:51.31507599420365
+        # tau = 3
         #-2.7186277031692385 max = 19.73575844802872
-        self.ymin = -1.632622394172697
-        self.ymax = 33.11593567960517
+        # tau = 10
+        #-10.427168154123393 Max = 81.493533748544
+        self.ymin = -10.427168154123393
+        self.ymax = 81.493533748544
 
         self.load = {"dgn": self.load_dgn_data,
                      "conv3d": self.load_conv3d_data,
@@ -73,7 +88,7 @@ class LoadData(object):
         sample = np.expand_dims(sample, axis=0)
         return sample
 
-    def get_input_sequences(self, sequences, y, class_idx, source_dir_path_complete, files):
+    def get_input_sequences(self, sequences, y, class_idx, source_dir_path_complete, folder, files):
         """
         Creates the image sequences for our input images. class_idx is incremented
 
@@ -91,7 +106,8 @@ class LoadData(object):
         # This will be used to deermine objective velocity
         t_delta_list = []
 
-        final_sequences = np.empty(shape=(0,self.image_sequence_length,self.image_width, self.image_height,self.image_channels))
+        final_sequences = np.empty(shape=(0,self.image_sequence_length,self.image_width, self.image_height,self.image_channels),dtype=np.int16)
+
         # Will convert y data to pandas as it is easier to do comparisons
         colList = []
         colList.append('image')
@@ -131,6 +147,16 @@ class LoadData(object):
         #print(file_index)
         #print(files)
 
+        if self.absolute_path_cond == False:
+            files_remove = glob.glob('./data_sets/tmp_holding/**/*.npy', recursive=True)
+        else:
+            files_remove = glob.glob(self.absolute_path + 'data_sets/tmp_holding/**/*.npy', recursive=True)
+        for f in files_remove:
+            try:
+                os.remove(f)
+            except OSError as e:
+                print("Error: %s : %s" % (f, e.strerror))
+
         # the next 20 or so lines get the start and end of the gap sequences of a file
         # so.... for instance if we have:
         # input:
@@ -145,6 +171,7 @@ class LoadData(object):
         inc = int(file_index[0])
         start_flag = True
         sync_flag = True
+        large_data = True
         for i in range(len(file_index)):
             #print(file_index[i])
             #print(inc)
@@ -184,7 +211,7 @@ class LoadData(object):
         final_sequence_file_popped = []
         sequence_list = []
         for j in range(len(start_list)):
-            sequences = np.empty(shape=(0,self.image_sequence_length,self.image_width, self.image_height,self.image_channels))
+            sequences = np.empty(shape=(0,self.image_sequence_length,self.image_width, self.image_height,self.image_channels),dtype=np.int16)
             # We should have a filename which correponds to the start of each image sequence
             # Any filenames left over that do not correspond with this list must be dropped
             # to insure dimensionality is correct
@@ -202,7 +229,7 @@ class LoadData(object):
                 return -1
 
             # build up a sequence of x images
-            sequence = np.zeros(shape=(1, self.image_sequence_length, self.image_height, self.image_width, self.image_channels))
+            sequence = np.zeros(shape=(1, self.image_sequence_length, self.image_height, self.image_width, self.image_channels),dtype=np.int16)
 
             #index_prev = self.get_index_from_file_name(files[start_idx][0])
             #timestamp_prev = self.get_timestamp_from_file_name(files[start_idx][0], source_dir_path_complete)
@@ -215,8 +242,9 @@ class LoadData(object):
                 #vel_l_tmp = 0.0
                 #vel_a_tmp = 0.0
 
-                #print(file_index[start_idx])
-                #print(int(end_list[j]))
+                print('current file (start_idx)', file_index[start_idx])
+                print('start of current batch id ', int(start_list[j]))
+                print('end of current batch id ', int(end_list[j]))
                 # stop parsing data if the requested number of sequences have been collected
                 if sequences_counter >= selected_sequences_per_class:
                     break
@@ -235,7 +263,8 @@ class LoadData(object):
                 temp_sequence_length = self.image_sequence_length
 
                 for idx in range(start_idx, start_idx + self.image_sequence_length):
-                    #print(idx)
+                    print('current start id (start_idx)',start_idx)
+                    print('current id (idx)',idx)
                     t_delta = 0.0
 
 
@@ -264,9 +293,12 @@ class LoadData(object):
                     if delta  < 0:
                         print('Implausible index. Image happened in the past (before the previous one). Skip sequence')
                         # Use start_idx as this will be the reference filename that will be appended to start_sequence_file
-                        print(files[start_idx-1][0])
+                        print(files[start_idx - 1][0])
                         remove_implausible_list.append(files[start_idx - 1][0])
                         print("")
+                        #remove images that are contained within sequence
+                        for seq_betwixt in range(self.image_sequence_length):
+                            remove_implausible_list.append(files[start_idx + seq_betwixt][0])
 
                         # set the current IDX as the start point for the next sequence
                         #start_idx = idx
@@ -283,6 +315,9 @@ class LoadData(object):
                         #remove_implausible_list.append(files[start_idx][0])
                         #for seq_i in range(sample_sequence_counter):
                         remove_implausible_list.append(files[start_idx - 1][0])
+                        #remove images that are contained within sequence
+                        for seq_betwixt in range(self.image_sequence_length -1 ):
+                            remove_implausible_list.append(files[start_idx + seq_betwixt][0])
 
                         print('index interrupted at: ', timestamp_curr)
                         print('Delta index is : ', t_delta , ' sec')
@@ -297,7 +332,7 @@ class LoadData(object):
                     # save image in the current sequence
                     image = Image.open(source_dir_path_complete + files[idx][0])
                     image.thumbnail((self.image_width, self.image_height), Image.ANTIALIAS)
-                    image = np.asarray(image, dtype="int32")
+                    image = np.asarray(image, dtype="int16")
                     sequence[0][sample_sequence_counter - 1] = image
 
                     # set true the sequence complete flag
@@ -307,11 +342,12 @@ class LoadData(object):
                 current = files[start_idx - 1][0]
 
                 # slide the start for the next sequence with 1 position
-                if self.slide == True:
+                if self.slide == True and sequence_complete == True:
                     start_idx += 1
                 elif sequence_complete == False:
                     if idx < (int(end_list[j]) - self.image_sequence_length):
                         start_idx = start_idx + self.image_sequence_length
+                        print("Got here")
                         #remove_flag == True
                     else:
                         start_idx = idx + 1
@@ -323,6 +359,7 @@ class LoadData(object):
                 if sequence_complete == True:
 
                     sequence_list.append(current)
+
                     sequences = np.concatenate((sequences, sequence), axis=0)
                     sequence_output = np.zeros(shape=(1, self.number_of_classes))
                     #sequence_output[0][class_idx] = 1
@@ -332,7 +369,7 @@ class LoadData(object):
                 # refresh the sequence for the next series
 
                 sequence = np.zeros(shape=(1, self.image_sequence_length, self.image_height,
-                                           self.image_width, self.image_channels))
+                                           self.image_width, self.image_channels),dtype=np.int16)
 
 
             # list comprehension to remove items from one list using another
@@ -350,51 +387,118 @@ class LoadData(object):
 
             df_tmp = df_y[df_y['image'].isin(final_sequence_file)]
 
+            #del df_y
+            #gc.collect()
 
-
-            df_tmp = df_tmp[:-1]
+            if self.slide == True:
+                offset = self.image_sequence_length
+            else:
+                offset = 1
+            df_tmp = df_tmp[:-offset]
             if df_y_process.empty:
                 df_y_process = df_tmp
             else:
                 df_y_process = pd.concat([df_y_process, df_tmp])
 
+            #del df_tmp
+            #gc.collect()
 
-            #t_delta_list = t_delta_list[:-self.image_sequence_length]
-            #print(final_sequence_file_popped)
-            final_sequences = np.concatenate((final_sequences, np.delete(sequences, 1, 0)), axis=0)
+            # X data or sequences can be many GB is size. It is best to split this as often as possible if too large
+            # Since we our data already has gaps and assuming the bumber of images between gaps will never be too large
+            # we will save each batch as an npy file.
+            if(large_data == False):
+                final_sequences = np.concatenate((final_sequences, np.delete(sequences, np.s_[:offset], 0)), axis=0)
+                del sequences
+                gc.collect()
+
+            # to avoid running out of ram we can split files
+            elif(large_data == True):
+                # This is kinda dumb but lets not reinvent the wheel
+                final_sequences = np.concatenate((final_sequences, np.delete(sequences, np.s_[:offset], 0)), axis=0)
+                if self.absolute_path_cond == False:
+                    path_where_to_save = './data_sets/tmp_holding/'
+                else:
+                    path_where_to_save = self.absolute_path + 'data_sets/tmp_holding/'
+                np.save(path_where_to_save + folder + '/' + folder +'_'+str(j), final_sequences)
+                final_sequences = np.empty(shape=(0,self.image_sequence_length,self.image_width, self.image_height,self.image_channels),dtype=np.int16)
 
 
-        df_y = df_y_process
-        #indeces = df_y[df_y['y2'].astype(float) > 20].index.tolist()
-        #df_y = df_y[df_y['y2'].astype(float) <= 20]
-        #final_sequences = np.delete(final_sequences, indeces, 0)
+        if(large_data == False):
+            del df_tmp
+            del df_y
+            gc.collect()
 
-        df_seq = pd.DataFrame(sequence_list)
-        df_seq.to_csv('seq.csv')
-        df_y.to_csv('traj.csv')
-        #df_vel_l = df_vel_l[df_vel_l['image'].isin(final_sequence_file_popped)]
-        #df_vel_a = df_vel_a[df_vel_a['image'].isin(final_sequence_file_popped)]
-        #print(df_y.shape[0])
+            #df_y = df_y_process
+            #indeces = df_y[df_y['y2'].astype(float) > 20].index.tolist()
+            #df_y = df_y[df_y['y2'].astype(float) <= 20]
+            #final_sequences = np.delete(final_sequences, indeces, 0)
 
+            df_seq = pd.DataFrame(sequence_list)
+            # Output this data just to ensure indexing of files makes sense
+            #df_seq.to_csv('seq.csv')
+            #df_y.to_csv('traj.csv')
 
-        #sys.exit()
-        y = df_y.iloc[:, 1:].to_numpy()
-        #vel_l = vel_l[:, 1:]
-        #vel_a = vel_a[:, 1:]
-        #print(t_delta_list)
-        #sys.exit()
-        #print(y.shape[0])
-        #print(y)
-        # Test
-        if(final_sequences.shape[0] != y.shape[0]):
-            print("Error: the sequence length of image sequences does not match our trajectory instances")
-            print("   Source path     " + source_dir_path_complete)
-            print("   Sequence dim.   " + str(final_sequences.shape[0])+' '+str(sequences.shape[1]))
-            print("   Trajectory dim. " + str(y.shape[0])+' '+str(y.shape[1]))
-            print("   Time deltas dim." + str(len(t_delta_list)))
-            print(" ")
-            sys.exit()
-        return final_sequences, y
+            #sys.exit()
+            y = df_y_process.iloc[:, 1:].to_numpy()
+
+            del df_y_process
+            gc.collect()
+
+            # Test
+            if(final_sequences.shape[0] != y.shape[0]):
+                print("Error: the sequence length of image sequences does not match our trajectory instances")
+                print("   Source path     " + source_dir_path_complete)
+                print("   Sequence dim.   " + str(final_sequences.shape[0])+' '+str(sequences.shape[1]))
+                print("   Trajectory dim. " + str(y.shape[0])+' '+str(y.shape[1]))
+                print("   Time deltas dim." + str(len(t_delta_list)))
+                print(" ")
+                sys.exit()
+            return final_sequences, y
+
+        elif(large_data == True):
+            if self.absolute_path_cond == False:
+                fpath = './data_sets/merge/tmp.npy'
+            else:
+                fpath = self.absolute_path + 'data_sets/merge/tmp.npy'
+            npyfilespath = path_where_to_save + folder + '/'
+            #os.chdir(npyfilespath)
+            # Create file if it does not exist else delete contents
+
+            filenames = glob.glob(npyfilespath+"*.npy")
+            arrays = []
+            for f in filenames:
+                arrays.append(np.load(f))
+            print("Size of X data")
+            final_sequences = np.concatenate(arrays)
+            #print(asizeof.asizeof(final_sequences))
+            print(final_sequences.dtype)
+            #final_sequences = sparse.COO(final_sequences)
+            #print(asizeof.asizeof(final_sequences))
+            #print(final_sequences.dtype)
+
+            df_y = df_y_process
+            #indeces = df_y[df_y['y2'].astype(float) > 20].index.tolist()
+            #df_y = df_y[df_y['y2'].astype(float) <= 20]
+            #final_sequences = np.delete(final_sequences, indeces, 0)
+
+            df_seq = pd.DataFrame(sequence_list)
+            # Output this data just to ensure indexing of files makes sense
+            #df_seq.to_csv('seq.csv')
+            #df_y.to_csv('traj.csv')
+
+            #sys.exit()
+            y = df_y.iloc[:, 1:].to_numpy()
+
+            # Test
+            if(final_sequences.shape[0] != y.shape[0]):
+                print("Error: the sequence length of image sequences does not match our trajectory instances")
+                print("   Source path     " + source_dir_path_complete)
+                print("   Sequence dim.   " + str(final_sequences.shape[0])+' '+str(sequences.shape[1]))
+                print("   Trajectory dim. " + str(y.shape[0])+' '+str(y.shape[1]))
+                print("   Time deltas dim." + str(len(t_delta_list)))
+                print(" ")
+                sys.exit()
+            return final_sequences, y
 
     def load_lstm_data(self, folder):
         class_idx = 0
@@ -425,14 +529,18 @@ class LoadData(object):
             print('Found :', nr_of_found_samples)
 
             if folder == 'training':
+                #pass
                 self.X_train, self.Y_train = self.get_input_sequences(self.X_train, self.Y_train,
-                                                                      class_idx, f + '/', files)
+                                                                      class_idx, f + '/', folder, files)
             elif folder == 'testing':
                 self.X_test, self.Y_test = self.get_input_sequences(self.X_test, self.Y_test,
-                                                                    class_idx, f + '/', files)
+                                                                    class_idx, f + '/', folder, files)
+                #print(asizeof.asizeof(self.X_test))
+                #print(asizeof.asizeof(self.Y_test))
             elif folder == 'validation':
+                #pass
                 self.X_valid, self.Y_valid = self.get_input_sequences(self.X_valid, self.Y_valid,
-                                                                      class_idx, f + '/', files)
+                                                                      class_idx, f + '/', folder, files)
             class_idx += 1
 
     def load_dgn_data(self, folder):
@@ -498,13 +606,13 @@ class LoadData(object):
         #      as a result this was always reverting to else statement and causing the input array shape to
         #      be incorrect for sequencing
         if self.type == 'lstm_sliding' or self.type == 'lstm_bucketing':
-            self.X_train = np.zeros(shape=(0, self.image_sequence_length, self.image_height, self.image_width, self.image_channels))
-            self.X_valid = np.zeros(shape=(0, self.image_sequence_length, self.image_height, self.image_width, self.image_channels))
-            self.X_test = np.zeros(shape=(0, self.image_sequence_length, self.image_height, self.image_width, self.image_channels))
+            self.X_train = np.zeros(shape=(0, self.image_sequence_length, self.image_height, self.image_width, self.image_channels), dtype = np.float16)
+            self.X_valid = np.zeros(shape=(0, self.image_sequence_length, self.image_height, self.image_width, self.image_channels), dtype = np.float16)
+            self.X_test = np.zeros(shape=(0, self.image_sequence_length, self.image_height, self.image_width, self.image_channels), dtype = np.float16)
         else:
-            self.X_train = np.zeros(shape=(0, self.image_height, self.image_width, self.image_channels))
-            self.X_valid = np.zeros(shape=(0, self.image_height, self.image_width, self.image_channels))
-            self.X_test = np.zeros(shape=(0, self.image_height, self.image_width, self.image_channels))
+            self.X_train = np.zeros(shape=(0, self.image_height, self.image_width, self.image_channels), dtype = np.float16)
+            self.X_valid = np.zeros(shape=(0, self.image_height, self.image_width, self.image_channels), dtype = np.float16)
+            self.X_test = np.zeros(shape=(0, self.image_height, self.image_width, self.image_channels), dtype = np.float16)
 
         self.Y_train = np.zeros(shape=(0, self.number_of_classes))
         self.Y_valid = np.zeros(shape=(0, self.number_of_classes))
@@ -533,22 +641,29 @@ class LoadData(object):
         # TEST HERE
         # ************************************************************** #
 
+        #print('dtype prior')
+        #print(self.X_train.dtype)
         for f in folders:
             self.load[self.type](f)
+
+        self.X_train = self.X_train.astype(np.float16)
+        self.X_test = self.X_test.astype(np.float16)
+        self.X_valid = self.X_valid.astype(np.float16)
 
         self.Y_train = self.Y_train.astype(float)
         self.Y_test = self.Y_test.astype(float)
         self.Y_valid = self.Y_valid.astype(float)
+        #print('dtype after')
+        #print(self.X_train.dtype)
 
 
         # Ensure our y data is a sequence ahead e.g t + tau and our images are a sequence behind t - tau
         # We do this by slicing last row of our X data and first row of our Y data
 
-
-        #if self.shuffle == True:
-        #    self.X_train, self.Y_train = self.shuffler(self.X_train, self.Y_train)
-        #    self.X_test, self.Y_test = self.shuffler(self.X_test, self.Y_test)
-        #    self.X_valid, self.Y_valid = self.shuffler(self.X_valid, self.Y_valid)
+        if self.shuffle == True:
+            self.X_train, self.Y_train = self.shuffler(self.X_train, self.Y_train)
+            self.X_test, self.Y_test = self.shuffler(self.X_test, self.Y_test)
+            self.X_valid, self.Y_valid = self.shuffler(self.X_valid, self.Y_valid)
 
         # Should just scale using training
         self.ymin = np.amin(self.Y_train)
@@ -557,6 +672,9 @@ class LoadData(object):
         def normalizer(array, min, max):
            return (array - min)/ (max - min)
 
+        def normalizer_float16(array, min, max):
+           return (array - min)/(max - min)
+
         self.Y_train = normalizer(self.Y_train, self.ymin, self.ymax)
         self.Y_test = normalizer(self.Y_test, self.ymin, self.ymax)
         self.Y_valid = normalizer(self.Y_valid, self.ymin, self.ymax)
@@ -564,9 +682,12 @@ class LoadData(object):
         #print(unravel_index(self.Y_train.argmax(), self.Y_train.shape))
         #sys.exit()
         # We know 0 min and 255 max so no need to find max and min, just hardcode this
-        self.X_train = normalizer(self.X_train, 0, 255)
-        self.X_test = normalizer(self.X_test, 0, 255)
-        self.X_valid = normalizer(self.X_valid, 0, 255)
+        self.X_train = normalizer_float16(self.X_train, np.float16(0.0), np.float16(255.0))
+        self.X_test = normalizer_float16(self.X_test, np.float16(0.0), np.float16(255.0))
+        self.X_valid = normalizer_float16(self.X_valid, np.float16(0.0), np.float16(255.0))
+
+        print('dtype after')
+        print(self.X_train.dtype)
 
         # to confirm everything makes sense output our standardized x
         xminstd = np.amin(self.X_train)
@@ -594,17 +715,23 @@ class LoadData(object):
         self.save_processed_data()
 
     def load_processed_data(self):
-        path_to_data = './data_sets/' + self.type
-        self.X_train = np.array(np.load(path_to_data + '/X_train.npy'), dtype=np.float32)
-        self.X_valid = np.array(np.load(path_to_data + '/X_valid.npy'), dtype=np.float32)
-        self.X_test = np.array(np.load(path_to_data + '/X_test.npy'), dtype=np.float32)
-        self.Y_train = np.array(np.load(path_to_data + '/Y_train.npy'), dtype=np.float32)
-        self.Y_valid = np.array(np.load(path_to_data + '/Y_valid.npy'), dtype=np.float32)
-        self.Y_test = np.array(np.load(path_to_data + '/Y_test.npy'), dtype=np.float32)
+        if self.absolute_path_cond == False:
+            path_to_data = './data_sets/' + self.type
+        else:
+            path_to_data = self.absolute_path + 'data_sets/' + self.type
+        self.X_train = np.array(np.load(path_to_data + '/X_train.npy'), dtype=np.float16)
+        self.X_valid = np.array(np.load(path_to_data + '/X_valid.npy'), dtype=np.float16)
+        self.X_test = np.array(np.load(path_to_data + '/X_test.npy'), dtype=np.float16)
+        self.Y_train = np.array(np.load(path_to_data + '/Y_train.npy'), dtype=np.float16)
+        self.Y_valid = np.array(np.load(path_to_data + '/Y_valid.npy'), dtype=np.float16)
+        self.Y_test = np.array(np.load(path_to_data + '/Y_test.npy'), dtype=np.float16)
         self.data_was_loaded = True
 
     def save_processed_data(self):
-        path_where_to_save = './data_sets/' + self.type
+        if self.absolute_path_cond == False:
+            path_where_to_save = './data_sets/' + self.type
+        else:
+            path_where_to_save = self.absolute_path + 'data_sets/' + self.type
         np.save(path_where_to_save + '/X_train', self.X_train)
         np.save(path_where_to_save + '/Y_train', self.Y_train)
         np.save(path_where_to_save + '/X_valid', self.X_valid)
@@ -613,11 +740,18 @@ class LoadData(object):
         np.save(path_where_to_save + '/Y_test', self.Y_test)
 
     def create_data_sets(self):
-        self.check_dir('./data_sets')
-        self.check_dir('./data_sets/dgn')
-        self.check_dir('./data_sets/conv3d')
-        self.check_dir('./data_sets/lstm_bucketing')
-        self.check_dir('./data_sets/lstm_sliding')
+        if self.absolute_path_cond == False:
+            self.check_dir('./data_sets')
+            self.check_dir('./data_sets/dgn')
+            self.check_dir('./data_sets/conv3d')
+            self.check_dir('./data_sets/lstm_bucketing')
+            self.check_dir('./data_sets/lstm_sliding')
+        else:
+            self.check_dir(self.absolute_path + 'data_sets')
+            self.check_dir(self.absolute_path + 'data_sets/dgn')
+            self.check_dir(self.absolute_path + 'data_sets/conv3d')
+            self.check_dir(self.absolute_path + 'data_sets/lstm_bucketing')
+            self.check_dir(self.absolute_path + 'data_sets/lstm_sliding')
 
     @staticmethod
     def get_index_from_file_name(filename):

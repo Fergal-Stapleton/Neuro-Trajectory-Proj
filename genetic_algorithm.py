@@ -13,14 +13,15 @@ import math
 
 
 class GeneticAlgorithm:
-    def __init__(self, path, params, model, data_set):
+    def __init__(self, path, params, model, data_set, run_num):
         self.path = path + '/genetic_algorithm'
         self.data_set = data_set
         self.params = params
         self.model = model
-        self.population = 25
-        self.generations = 2
-
+        self.total_run = 5
+        self.population = 10
+        self.generations = 3
+        self.run_n = run_num
         self.create_dirs()
 
     def create_dirs(self):
@@ -33,7 +34,7 @@ class GeneticAlgorithm:
 
     def run(self, mo_type):
         print("***Evolving for %d generations with population size = %d***" % (self.generations, self.population))
-        if mo_type == "naive":
+        if mo_type == "naive-tournament-select":
             self.generate()
         elif mo_type == "nsga-ii":
             self.generate_nsga2()
@@ -56,6 +57,7 @@ class GeneticAlgorithm:
                 params_csv.append(str(genome.geneparam[p]))
 
             params_csv.append(str(i+1))
+            params_csv.append(str(genome.u_ID))
             params_csv.append(genome.accuracy)
             #self.x_err, self.x_max, self.y_err, self.y_max
             params_csv.append(genome.x_err)
@@ -79,7 +81,7 @@ class GeneticAlgorithm:
 
         for genome in genomes:
             # FS: going to get objectives out here
-            genome.train(self.model, self.data_set, self.path, i, self.generations)
+            genome.train(self.model, self.data_set, self.path, i, self.generations, self.run_n)
 
             parameters = list()
             params_csv = list()
@@ -90,6 +92,7 @@ class GeneticAlgorithm:
 
             params_csv.append(str(i+1))
             params_csv.append(genome.accuracy)
+            params_csv.append(genome.u_ID)
             #self.x_err, self.x_max, self.y_err, self.y_max
             params_csv.append(genome.x_err)
             params_csv.append(genome.x_max)
@@ -112,7 +115,7 @@ class GeneticAlgorithm:
 
         for genome in genomes:
             # FS: going to get objectives out here
-            genome.train_short(self.model, self.data_set, self.path, i, self.generations)
+            genome.train_short(self.model, self.data_set, self.path, i, self.generations, self.run_n)
 
 
         pbar.close()
@@ -134,6 +137,7 @@ class GeneticAlgorithm:
              table_head.append(str(p))
 
         table_head.append("Gen")
+        table_head.append("ID")
         table_head.append("accuracy")
         table_head.append("x_err")
         table_head.append("x_max")
@@ -208,6 +212,7 @@ class GeneticAlgorithm:
              table_head.append(str(p))
 
         table_head.append("Gen")
+        table_head.append("ID")
         table_head.append("accuracy")
         table_head.append("x_err")
         table_head.append("x_max")
@@ -226,7 +231,13 @@ class GeneticAlgorithm:
         # Dont want to save this model, but require initial fitness
         # a little bit repetitive but okay
         self.train_simplified(genomes, writer, 0)
+        for genome in genomes:
+            print('geneome before')
+            print(genome.fitness_vector)
         evolver.fast_nondominated_sort(genomes)
+        for genome in genomes:
+            print('geneome after')
+            print(genome.fitness_vector)
         evolver.calculate_crowding_distance(genomes)
         #sys.exit()
 
@@ -236,7 +247,8 @@ class GeneticAlgorithm:
             self.print_genomes(genomes)
 
             combined_pop = evolver.combine_pop(genomes)
-            print(combined_pop)
+            if len(combined_pop) != len(genomes):
+                print('combined_pop is not the correct size')
 
             # Train and get accuracy for networks/genomes.
 
@@ -256,6 +268,19 @@ class GeneticAlgorithm:
             new_population.extend(evolver.fronts[front_num][0:self.population - len(new_population)])
 
             genomes = new_population
+            #self.model_genome, self.model_filepath
+            #if(i == int(self.generations - 1)):
+            #    for genome in genomes:
+            #        genome.model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '_run_' + str(run_n) + '_' + str(self.u_ID) + '.h5')
+
+            # To save space delete all models not in P+1
+            genome_id_list = []
+            for genome in genomes:
+                genome_id_list.append(genome.genome_filename)
+            for filename in os.listdir(str(self.path) + '/models/'):
+                print(filename)
+                if filename not in genome_id_list:
+                    os.remove(str(self.path) + '/models/' + filename)
             self.save_genomes(genomes, writer, i)
             #print("completed 1st gen")
             #sys.exit()

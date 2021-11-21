@@ -342,7 +342,7 @@ def lstm_test(X_train_shape, parameters):
                    input_shape=input_shape[1:],
                    activation='relu',
                    name='conv1'))
-    #dgn.add(BatchNormalization())
+    dgn.add(BatchNormalization())
     #dgn.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool1'))
 
     # Add second convolutional layer.
@@ -353,18 +353,21 @@ def lstm_test(X_train_shape, parameters):
                           strides=(2, 2),
                           activation='relu',
                           name='conv2'))
+    dgn.add(BatchNormalization())
     dgn.add(Conv2D(filters=32,
                         kernel_size=(3, 3),
                         padding='valid',
                         strides=(1, 1),
                         activation='relu',
                         name='conv3'))
+    dgn.add(BatchNormalization())
     dgn.add(Conv2D(filters=32,
                         kernel_size=(3, 3),
                         padding='valid',
                         strides=(1, 1),
                         activation='relu',
                         name='conv4'))
+    dgn.add(BatchNormalization())
     #dgn.add(BatchNormalization())
     #dgn.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool2'))
     dgn.add(Flatten(name='flat'))
