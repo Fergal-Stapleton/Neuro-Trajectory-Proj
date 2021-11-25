@@ -29,17 +29,12 @@ class Genome():
         self.y_err = 0.0
         self.y_max = 0.0
         self.fitness_vector = [0.0, 0.0, 0.0]
-        #self.model_genome = None
-        #self.model_filepath = None
-        #self.fitness_vector = [0.0, 0.0]
         self.all_possible_genes = all_possible_genes
         self.rank = None
         self.crowding_distance = None
         self.domination_count = None
         self.dominated_solutions = None
         self.features = None
-        #self.fronts = []
-        #self.objectives = None
 
         # (dict): represents actual genome parameters
         self.geneparam = geneparam
@@ -155,6 +150,11 @@ class Genome():
         #                 I will comment out line 49 and 50 from training_history_plot
         history = TrainingHistoryPlot(path, dataset, parameters, i)
 
+        print("****** CHECK *******")
+        np.set_printoptions(threshold=np.inf)
+        print(dataset.Y_train)
+        sys.exit()
+
         model.fit(dataset.X_train, dataset.Y_train,
                   batch_size=batch_size,
                   epochs=epochs,
@@ -171,10 +171,26 @@ class Genome():
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
         prediction = model.predict(dataset.X_test)
 
-        real = dataset.Y_test
+        real = copy.deepcopy(dataset.Y_test)
         #dataset.Y_train
         def denormalize(array, max, min):
             return array*(max - min) + min
+
+        def denormalize_x(array, min, max):
+            return array[:, ::2]*(max - min) + min
+
+        def denormalize_y(array, min, max):
+            return array[:, 1::2]*(max - min) + min
+
+        def y_addition(array):
+            array_copy = copy.deepcopy(array)
+            for i in range(1, int(array.shape[1]/2) ):
+                #print(i)
+                array_copy[:, i*2 + 1] = array_copy[:, i*2 + 1] + array_copy[:, (i*2 -1)]
+                array_copy[:, i*2] = array_copy[:, i*2] + array_copy[:, (i*2 - 2)]
+            array = array_copy
+            return array
+
 
         #real_rescale = denormalize(real, dataset.ymax, dataset.ymin)
         #prediction_rescale = denormalize(prediction, dataset.ymax, dataset.ymin)
@@ -187,14 +203,39 @@ class Genome():
         x_err, x_max = self.x_error(prediction, real, image_sequence_length)
         y_err, y_max = self.y_error(prediction, real, image_sequence_length)
 
+        # Revert our prediction with ymin and ymax
+
         # While our prediction is done solely on our validation set (test is withheld), our objective valculation should be
         # based on the training set
         #     1) We would bias our evolutionary stratregy if we used validation
         #     2) Our 3rd objective requires the training data
         obj_training = model.predict(dataset.X_train)
-        obj_training_reverse_scale = denormalize(obj_training, dataset.ymax, dataset.ymin)
-        np.set_printoptions(threshold=np.inf)
-        print(obj_training_reverse_scale)
+        #obj_training_reverse_scale = denormalize(obj_training, dataset.ymax, dataset.ymin)
+
+        obj_training[:, ::2]  = denormalize_x(obj_training, dataset.superscaler_x_min, dataset.superscaler_x_max)
+        prediction[:, ::2] = denormalize_x(prediction, dataset.superscaler_x_min, dataset.superscaler_x_max)
+        real[:, ::2] = denormalize_x(real, dataset.superscaler_x_min, dataset.superscaler_x_max)
+        #dataset.Y_valid[:, ::2] = denormalize_x(dataset.Y_valid, data_set.superscaler_x_min, dataset.superscaler_x_max)
+
+        obj_training[:, 1::2]  = denormalize_y(obj_training, dataset.superscaler_y_min, dataset.superscaler_y_max)
+        prediction[:, 1::2]  = denormalize_y(prediction, dataset.superscaler_y_min, dataset.superscaler_y_max)
+        real[:, 1::2]  = denormalize_y(real, dataset.superscaler_y_min, dataset.superscaler_y_max)
+        #dataset.Y_valid[:, 1::2]  = normalize_y(dataset.Y_valid, dataset.superscaler_y_min, dataset.superscaler_y_max)
+
+        obj_training = y_addition(obj_training)
+        prediction = y_addition(prediction)
+        real = y_addition(real)
+
+        np.set_printoptions(precision=3)
+        for i in range(len(real)):
+            print(str(prediction[i]) + '\r')
+            print(str(real[i]) + '\r')
+            print("\n")
+        #dataset.Y_valid = y_addition(dataset.Y_valid)
+
+
+        obj_training_reverse_scale = obj_training
+        prediction_rescale = prediction
 
         # This needs to be found out from GridSim or by diff'n timestamps of images
         t_delta = 0.2
@@ -241,7 +282,7 @@ class Genome():
         parameters.append(self.geneparam['batch_size'])
         parameters.append(self.geneparam['epochs'])
         # Helper: Early stopping.
-        early_stopper = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=5, verbose=0, mode='auto')
+        early_stopper = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=10, verbose=0, mode='auto')
         # FS: 18/07/2021: This is problematic as it is set up for classification
         #                 I will comment out line 49 and 50 from training_history_plot
         history = TrainingHistoryPlot(path, dataset, parameters, i)
@@ -263,6 +304,9 @@ class Genome():
 
         #print(len(x_train_list))
         #print(len(x_train_list[0]))
+        np.set_printoptions(threshold=np.inf)
+        #print(dataset.X_train[0])
+        #sys.exit()
 
         model.fit(dataset.X_train, dataset.Y_train,
                   batch_size=batch_size,
@@ -282,17 +326,33 @@ class Genome():
         print("print length of predictions: " + str(prediction.shape[0]))
         #print(prediction)
         #print(dataset.Y_train)
-        real = dataset.Y_test
+        real = copy.deepcopy(dataset.Y_test)
         #dataset.Y_train
         def denormalize(array, max, min):
             return array*(max - min) + min
 
-        real_rescale = denormalize(real, dataset.ymax, dataset.ymin)
-        prediction_rescale = denormalize(prediction, dataset.ymax, dataset.ymin)
+        def denormalize_x(array, min, max):
+            return array[:, ::2]*(max - min) + min
+
+        def denormalize_y(array, min, max):
+            return array[:, 1::2]*(max - min) + min
+
+        def y_addition(array):
+            array_copy = copy.deepcopy(array)
+            for i in range(1, int(array.shape[1]/2) ):
+                #print(i)
+                array_copy[:, i*2 + 1] = array_copy[:, i*2 + 1] + array_copy[:, (i*2 -1)]
+                array_copy[:, i*2] = array_copy[:, i*2] + array_copy[:, (i*2 - 2)]
+            array = array_copy
+            return array
+
+        #real_rescale = denormalize(real, dataset.ymax, dataset.ymin)
+        #prediction_rescale = denormalize(prediction, dataset.ymax, dataset.ymin)
 
         np.set_printoptions(threshold=np.inf)
-        print(real_rescale)
-        print(prediction_rescale)
+        #print(real_rescale)
+        #print('prediction')
+        #print(prediction_rescale)
 
         pred_acc = self.rmse(prediction, real, image_sequence_length)
         x_err, x_max = self.x_error(prediction, real, image_sequence_length)
@@ -305,9 +365,35 @@ class Genome():
         #     1) We would bias our evolutionary stratregy if we used validation
         #     2) Our 3rd objective requires the training data
         obj_training = model.predict(dataset.X_train)
-        obj_training_reverse_scale = denormalize(obj_training, dataset.ymax, dataset.ymin)
+        #obj_training_reverse_scale = denormalize(obj_training, dataset.ymax, dataset.ymin)
+
+        obj_training[:, ::2]  = denormalize_x(obj_training, dataset.superscaler_x_min, dataset.superscaler_x_max)
+        prediction[:, ::2] = denormalize_x(prediction, dataset.superscaler_x_min, dataset.superscaler_x_max)
+        real[:, ::2] = denormalize_x(real, dataset.superscaler_x_min, dataset.superscaler_x_max)
+        #dataset.Y_valid[:, ::2] = denormalize_x(dataset.Y_valid, data_set.superscaler_x_min, dataset.superscaler_x_max)
+
+        obj_training[:, 1::2]  = denormalize_y(obj_training, dataset.superscaler_y_min, dataset.superscaler_y_max)
+        prediction[:, 1::2]  = denormalize_y(prediction, dataset.superscaler_y_min, dataset.superscaler_y_max)
+        real[:, 1::2]  = denormalize_y(real, dataset.superscaler_y_min, dataset.superscaler_y_max)
+        #dataset.Y_valid[:, 1::2]  = normalize_y(dataset.Y_valid, dataset.superscaler_y_min, dataset.superscaler_y_max)
+
+        obj_training = y_addition(obj_training)
+        prediction = y_addition(prediction)
+        real = y_addition(real)
+
+        np.set_printoptions(precision=3)
+        for i in range(len(real)):
+            print(str(prediction[i]) + '\r')
+            print(str(real[i]) + '\r')
+            print("\n")
+        #dataset.Y_valid = y_addition(dataset.Y_valid)
+
+
+        obj_training_reverse_scale = obj_training
+        prediction_rescale = prediction
+
         np.set_printoptions(threshold=np.inf)
-        #print(obj_training_reverse_scale )
+        #print(prediction_rescale)
 
         # This needs to be found out from GridSim or by diff'n timestamps of images
         t_delta = 0.2

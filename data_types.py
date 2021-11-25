@@ -1,13 +1,3 @@
-# # For DGN
-# DATA_SET_INFO = {'data_set_path': 'D:/2018/Ext_/RFL_ER-CT_31_20171122_144104_split_000/1/sorted_samples/grid_only_splited',
-#                  'image_height': 128,
-#                  'image_width': 128,
-#                  'image_channels': 3,
-#                  'image_depth': 1,
-#                  'num_classes': 8,
-#                  'classes_name':  ['city', 'country_road', 'highway', 'intersection', 'parking_lot', 'round_about', 'traffic_jam', 't_junktion']
-#                  }
-
 DATA_SET_INFO = {#data_set_path': '/ichec/home/users/fergals/neuroTraj/Neuro-Trajectory-Proj/images_splited',
                  #'data_set_path': '/ichec/work/nuim01/fergals/neuroTraj2/images_splited',
                  'data_set_path': 'D:/Main/GitHub/Neuro-Trajectory/Neuro-Trajectory-Proj/images_splited',
@@ -16,29 +6,23 @@ DATA_SET_INFO = {#data_set_path': '/ichec/home/users/fergals/neuroTraj/Neuro-Tra
                  'image_channels': 3,
                  'image_depth': 1,
                  #'num_classes': 4,
-                 'num_classes': 8,
-                 #'num_classes': 18,
+                 #'num_classes': 8,
+                 'num_classes': 18,
                  # x1 and y1 are alway zero so no need to predict
                  #'classes_name': ['x2', 'y2', 'x3', 'y3']
-                 'classes_name': ['x2', 'y2', 'x3', 'y3', 'x4', 'y4', 'x5', 'y5']
-                 #'classes_name': ['x2', 'y2', 'x3', 'y3', 'x4', 'y4', 'x5', 'y5','x6', 'y6', 'x7', 'y7', 'x8', 'y8', 'x9', 'y9', 'x10', 'y10']
+                 #'classes_name': ['x2', 'y2', 'x3', 'y3', 'x4', 'y4', 'x5', 'y5']
+                 'classes_name': ['x2', 'y2', 'x3', 'y3', 'x4', 'y4', 'x5', 'y5','x6', 'y6', 'x7', 'y7', 'x8', 'y8', 'x9', 'y9', 'x10', 'y10']
                  #'classes_name': ['city', 'country_road', 'highway', 'parking_lot', 'traffic_jam']
                  }
 
 #PATH_SAVE_FIG = '/ichec/work/nuim01/fergals/neuroTraj2/train/'
 PATH_SAVE_FIG = './train/'
 
-PARAMETERS_DGN = {'nb_neurons_1st_fc': ['96', '128', '256', '512'],
-                  'nb_neurons_2nd_fc': ['32', '64', '96', '128'],
-                  'loss_function': ['categorical_crossentropy', 'mean_squared_error'],
-                  'optimizer': ['rmsprop', 'adam', 'sgd', 'adagrad', 'adadelta', 'adamax', 'nadam'],
-                  'batch_size': [16],
-                  'epochs': [15]
-                  }
 
 PARAMETERS_LSTM = {'hidden_units': [8, 16, 32, 64],
                    'dropout_parameter': [0.2, 0.25, 0.3, 0.35, 0.4, 0.5],
-                   'batch_size': [8, 16, 24, 32],
+                   #'batch_size': [8, 16, 24, 32],
+                   'batch_size': [128, 192, 256],
                    'epochs': [10, 20, 30, 40, 50],
                    'loss_function': ['mean_squared_error', 'mean_squared_logarithmic_error', 'mean_absolute_error'],
                    'optimizer': ['rmsprop', 'nadam', 'sgd', 'adagrad', 'adadelta', 'adam', 'adamax'],
@@ -47,11 +31,3 @@ PARAMETERS_LSTM = {'hidden_units': [8, 16, 32, 64],
                    'cnn_flattened_layer_1': [256, 512, 768, 1024],
                    'cnn_flattened_layer_2': [256, 512, 768, 1024]
                    }
-
-PARAMETERS_CONV3D = {'batch_size': [8, 16, 24, 32],
-                     'epochs': [10, 20, 30, 40, 50, 100],
-                     'loss_function': ['categorical_crossentropy','mean_squared_error'],
-                     'optimizer': ['rmsprop', 'nadam', 'sgd', 'adagrad', 'adadelta', 'adam', 'adamax'],
-                     'hidden_units': [8, 16, 32, 64],
-                     'fc_layers': [128, 256, 512, 1024]
-                     }

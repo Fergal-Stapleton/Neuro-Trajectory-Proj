@@ -11,6 +11,7 @@ from load_data import *
 import time
 import logging
 import model
+import copy
 
 # Setup logging.
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s',
@@ -110,14 +111,8 @@ def main():
     time_str = time.strftime("%Y-%m-%d_%H %M")
     path = PATH_SAVE_FIG + str(time_str) + '_' + str(run_num)
 
-    if MODEL_NAME == 'dgn':
-        parameters = PARAMETERS_DGN
-        model_function = model.dgn_model
-    elif MODEL_NAME == 'conv3d':
-        parameters = PARAMETERS_CONV3D
-        model_function = model.conv3d_model
-    elif (MODEL_NAME == 'lstm_bucketing') or \
-         (MODEL_NAME == 'lstm_sliding'):
+    # Can potentially have more models here
+    if(MODEL_NAME == 'lstm_sliding'):
         parameters = PARAMETERS_LSTM
         #model_function = model.lstm_model
         model_function = model.lstm_test
@@ -126,9 +121,69 @@ def main():
     data_set = load_data(MODEL_NAME)
     print('Done! \n')
 
-    #print(data_set.Y_train.shape[0])
-    #print(data_set.Y_train.shape[1])
+    #sys.exit()
 
+    # ************* SUPER SCALER ************** #
+
+    print("****** Scaling X and Y pos. independantly *******")
+    np.set_printoptions(threshold=np.inf)
+    #def denormalize(array, max, min):
+    #    return array*(max - min) + min
+
+    #Y_train_rescale = denormalize(data_set.Y_train, data_set.ymax, data_set.ymin)
+    Y_train_x_pos = data_set.Y_train[:, ::2]
+    Y_train_y_pos = data_set.Y_train[:, 1::2]
+
+    data_set.superscaler_x_min = np.amin(Y_train_x_pos)
+    data_set.superscaler_x_max = np.amax(Y_train_x_pos)
+
+
+    def normalize_x(array, min, max):
+        return (array[:, ::2] - min)/ (max - min)
+
+    def normalize_y(array, min, max):
+        return (array[:, 1::2] - min)/ (max - min)
+
+    def y_subtract(array):
+        array_copy = copy.deepcopy(array)
+        for i in range(1, int(array.shape[1]/2) ):
+            #print(i)
+            array[:, i*2 + 1] = array_copy[:, i*2 + 1] - array_copy[:, (i*2 - 1)]
+            array[:, i*2] = array_copy[:, i*2] - array_copy[:, (i*2 - 2)]
+        return array
+
+    # If jump in Y position does not make sense impute the previous or next positional y value
+    # [i.e if value is high due to acc this will remain high and vica versa]
+    def impute_next_pos(array):
+        for i in range(array.shape[0]):
+            for j in range(array.shape[1]):
+                if array[i, j] > 10 and j < (array.shape[1]-1):
+                    array[i, j] = array[i, j + 2]
+                elif array[i, j] > 10 and j >= (array.shape[1]-1) :
+                    array[i, j] = array[i, j - 2]
+        return array
+
+    data_set.Y_train = y_subtract(data_set.Y_train)
+    data_set.Y_test = y_subtract(data_set.Y_test)
+    data_set.Y_valid = y_subtract(data_set.Y_valid)
+
+    data_set.Y_train[:, ::2]  = normalize_x(data_set.Y_train, data_set.superscaler_x_min, data_set.superscaler_x_max)
+    data_set.Y_test[:, ::2] = normalize_x(data_set.Y_test, data_set.superscaler_x_min, data_set.superscaler_x_max)
+    data_set.Y_valid[:, ::2] = normalize_x(data_set.Y_valid, data_set.superscaler_x_min, data_set.superscaler_x_max)
+
+
+    data_set.Y_train = impute_next_pos(data_set.Y_train)
+    data_set.Y_test = impute_next_pos(data_set.Y_test)
+    data_set.Y_valid = impute_next_pos(data_set.Y_valid)
+
+    data_set.superscaler_y_min = np.amin(data_set.Y_train[:, 1::2])
+    data_set.superscaler_y_max = np.amax(data_set.Y_train[:, 1::2])
+
+    data_set.Y_train[:, 1::2]  = normalize_y(data_set.Y_train, data_set.superscaler_y_min, data_set.superscaler_y_max)
+    data_set.Y_test[:, 1::2]  = normalize_y(data_set.Y_test, data_set.superscaler_y_min, data_set.superscaler_y_max)
+    data_set.Y_valid[:, 1::2]  = normalize_y(data_set.Y_valid, data_set.superscaler_y_min, data_set.superscaler_y_max)
+
+    # This has not really been tested, using model.lstm_test when testing
     if GA == 'no' and GS == 'no':
         one_train(path, data_set, model_function, parameters)
 
@@ -140,6 +195,11 @@ def main():
         optim = GridSearch(path, parameters, model_function, data_set, run_num)
         optim.run(mo_type)
 
+    # Print out at end for ease, this is hardcoded at the moment in load_model_analysis
+    print(data_set.superscaler_x_min)
+    print(data_set.superscaler_x_max)
+    print(data_set.superscaler_y_min)
+    print(data_set.superscaler_y_max)
 
 if __name__ == '__main__':
     main()

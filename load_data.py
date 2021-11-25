@@ -66,17 +66,21 @@ class LoadData(object):
         # Max and Min - need to revert to real coordinates
         # tau = 5
         #-5.66668848861903 Max X:51.31507599420365
+        #self.ymin = -5.66668848861903
+        #self.ymax = 51.31507599420365
+        self.superscaler_x_min = None
+        self.superscaler_x_max = None
+        self.superscaler_y_min = None
+        self.superscaler_y_max = None
         # tau = 3
         #-2.7186277031692385 max = 19.73575844802872
         # tau = 10
         #-10.427168154123393 Max = 81.493533748544
-        self.ymin = -10.427168154123393
-        self.ymax = 81.493533748544
+        #self.ymin = -10.427168154123393
+        #self.ymax = 81.493533748544
 
-        self.load = {"dgn": self.load_dgn_data,
-                     "conv3d": self.load_conv3d_data,
-                     "lstm_sliding": self.load_lstm_data,
-                     "lstm_bucketing": self.load_lstm_data}
+        # Can add list of different models
+        self.load = {"lstm_sliding": self.load_lstm_data}
 
         self.create_data_sets()
 
@@ -535,67 +539,12 @@ class LoadData(object):
             elif folder == 'testing':
                 self.X_test, self.Y_test = self.get_input_sequences(self.X_test, self.Y_test,
                                                                     class_idx, f + '/', folder, files)
-                #print(asizeof.asizeof(self.X_test))
-                #print(asizeof.asizeof(self.Y_test))
             elif folder == 'validation':
                 #pass
                 self.X_valid, self.Y_valid = self.get_input_sequences(self.X_valid, self.Y_valid,
                                                                       class_idx, f + '/', folder, files)
             class_idx += 1
 
-    def load_dgn_data(self, folder):
-        selected_images_per_class = 4500
-        class_idx = 0
-
-        for directories in os.listdir(self.data_path + '/' + folder):
-            loaded_samples = 0
-            dir = os.path.join("", directories)
-            print(folder, ' class : ', dir)
-
-            files = next(os.walk(self.data_path + '/' + folder + '/' + dir))[2]
-            nr_of_found_samples = len(files)
-            print('Found :', nr_of_found_samples, ' samples (images)')
-
-            for file in files:
-                if loaded_samples >= selected_images_per_class:
-                    break
-
-                sample = Image.open(self.data_path + '/' + folder + '/' + dir + '/' + file)
-                sample = self.resize_image(sample)
-
-                # NO - this is wrong
-                y = np.zeros(shape=(1, self.number_of_classes))
-                y[0][class_idx] = 1
-
-                if folder == 'training':
-                    print (np.shape(self.X_train), np.shape(sample))
-                    self.X_train = np.concatenate((self.X_train, sample), axis=0)
-                    self.Y_train = np.concatenate((self.Y_train, y), axis=0)
-                elif folder == 'validation':
-                    print(np.shape(self.X_valid), np.shape(sample))
-                    self.X_valid = np.concatenate((self.X_valid, sample), axis=0)
-                    self.Y_valid = np.concatenate((self.Y_valid, y), axis=0)
-                elif folder == 'testing':
-                    print(np.shape(self.X_test), np.shape(sample))
-                    self.X_test = np.concatenate((self.X_test, sample), axis=0)
-                    self.Y_test = np.concatenate((self.Y_test, y), axis=0)
-
-                loaded_samples += 1
-
-            class_idx += 1
-
-    def load_conv3d_data(self, folder):
-        self.load_dgn_data(folder)
-
-        if folder == 'training':
-            self.X_train = self.X_train.reshape(np.shape(self.X_train)[0], self.image_depth, self.image_width,
-                                                self.image_height, self.image_channels)
-        elif folder == 'validation':
-            self.X_valid = self.X_valid.reshape(np.shape(self.X_valid)[0], self.image_depth, self.image_width,
-                                                self.image_height, self.image_channels)
-        elif folder == 'testing':
-            self.X_test = self.X_test.reshape(np.shape(self.X_test)[0], self.image_depth, self.image_width,
-                                              self.image_height, self.image_channels)
 
     def load_new_data(self):
         print(self.data_path)
@@ -660,24 +609,25 @@ class LoadData(object):
         # Ensure our y data is a sequence ahead e.g t + tau and our images are a sequence behind t - tau
         # We do this by slicing last row of our X data and first row of our Y data
 
+        # Dont shuffle test data elsewise we cant overlay later -- Also we dont use it anywhere anyway
         if self.shuffle == True:
             self.X_train, self.Y_train = self.shuffler(self.X_train, self.Y_train)
-            self.X_test, self.Y_test = self.shuffler(self.X_test, self.Y_test)
+            #self.X_test, self.Y_test = self.shuffler(self.X_test, self.Y_test)
             self.X_valid, self.Y_valid = self.shuffler(self.X_valid, self.Y_valid)
 
         # Should just scale using training
-        self.ymin = np.amin(self.Y_train)
-        self.ymax = np.amax(self.Y_train)
+        #self.ymin = np.amin(self.Y_train)
+        #self.ymax = np.amax(self.Y_train)
 
-        def normalizer(array, min, max):
-           return (array - min)/ (max - min)
+        #def normalizer(array, min, max):
+          #return (array - min)/ (max - min)
 
         def normalizer_float16(array, min, max):
            return (array - min)/(max - min)
 
-        self.Y_train = normalizer(self.Y_train, self.ymin, self.ymax)
-        self.Y_test = normalizer(self.Y_test, self.ymin, self.ymax)
-        self.Y_valid = normalizer(self.Y_valid, self.ymin, self.ymax)
+        #self.Y_train = normalizer(self.Y_train, self.ymin, self.ymax)
+        #self.Y_test = normalizer(self.Y_test, self.ymin, self.ymax)
+        #self.Y_valid = normalizer(self.Y_valid, self.ymin, self.ymax)
 
         #print(unravel_index(self.Y_train.argmax(), self.Y_train.shape))
         #sys.exit()
@@ -705,7 +655,7 @@ class LoadData(object):
         print("   Test seq. data type        " + str(self.Y_test.dtype))
         print("   Validation Sequence dim.   " + str(self.X_valid.shape[0])+' '+str(self.X_valid.shape[1]) + '   '+ str(self.Y_valid.shape[0])+' '+str(self.Y_valid.shape[1]))
         print("   Validation seq. data type  " + str(self.Y_valid.dtype))
-        print("   Min Y:" + str(self.ymin) + " Max X:" + str(self.ymax))
+        #print("   Min Y:" + str(self.ymin) + " Max X:" + str(self.ymax))
         print("   Std Min X:" + str(xminstd) + " STD Max X:" + str(xmaxstd))
         print(" ")
 
@@ -720,11 +670,17 @@ class LoadData(object):
         else:
             path_to_data = self.absolute_path + 'data_sets/' + self.type
         self.X_train = np.array(np.load(path_to_data + '/X_train.npy'), dtype=np.float16)
+        self.X_train = self.X_train[:1000]
         self.X_valid = np.array(np.load(path_to_data + '/X_valid.npy'), dtype=np.float16)
+        self.X_valid = self.X_valid[:200]
         self.X_test = np.array(np.load(path_to_data + '/X_test.npy'), dtype=np.float16)
+        self.X_test = self.X_test[:200]
         self.Y_train = np.array(np.load(path_to_data + '/Y_train.npy'), dtype=np.float16)
+        self.Y_train = self.Y_train[:1000]
         self.Y_valid = np.array(np.load(path_to_data + '/Y_valid.npy'), dtype=np.float16)
+        self.Y_valid = self.Y_valid[:200]
         self.Y_test = np.array(np.load(path_to_data + '/Y_test.npy'), dtype=np.float16)
+        self.Y_test = self.Y_test[:200]
         self.data_was_loaded = True
 
     def save_processed_data(self):
