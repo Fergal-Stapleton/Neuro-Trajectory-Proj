@@ -19,15 +19,20 @@ DATA_SET_INFO = {#data_set_path': '/ichec/home/users/fergals/neuroTraj/Neuro-Tra
 PATH_SAVE_FIG = './train/'
 
 
-PARAMETERS_LSTM = {'hidden_units': [8, 16, 32, 64],
+PARAMETERS_LSTM = {#'hidden_units': [8, 16, 32, 64],
+                   'hidden_units': [64, 128, 192, 256, 320],
                    'dropout_parameter': [0.2, 0.25, 0.3, 0.35, 0.4, 0.5],
                    #'batch_size': [8, 16, 24, 32],
-                   'batch_size': [128, 192, 256],
+                   #'momentum'
+                   'batch_size': [64, 128],
+                   #'batch_size': [64, 128, 192, 256],
                    'epochs': [10, 20, 30, 40, 50],
-                   'loss_function': ['mean_squared_error', 'mean_squared_logarithmic_error', 'mean_absolute_error'],
+                   'loss_function': ['mean_squared_error', 'mean_absolute_error', ],
                    'optimizer': ['rmsprop', 'nadam', 'sgd', 'adagrad', 'adadelta', 'adam', 'adamax'],
                    'lstm_cells':[1, 2, 3, 4, 5],
                    'dropout': [0.05, 0.1, 0.15, 0.2, 0.25],
                    'cnn_flattened_layer_1': [256, 512, 768, 1024],
-                   'cnn_flattened_layer_2': [256, 512, 768, 1024]
+                   'cnn_flattened_layer_2': [256, 512, 768, 1024],
+                   'lstm_flattened_layer_1': [64, 128, 256, 512],
+                   'lstm_flattened_layer_2': [64, 128, 256, 512]
                    }
