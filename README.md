@@ -45,15 +45,18 @@ Some properties are hardcoded that are not yet in the config. The most important
 
 load_data.py:
 
+```
 self.slide = True
 self.shuffle = True
 self.absolute_path_cond = True
-self.large_data = True (Warning: Only works on Windows, set to false if using Mac or Linux)
-
+self.large_data = True #(Warning: Only works on Windows, set to false if using Mac or Linux)
+```
 genetic_algorithm.py
 
+```
 self.population = 6
 self.generations = 3
+```
 
 If collecting new data an updated version of GridSim has been included that records highway data.
 First navigate to directory to run code
