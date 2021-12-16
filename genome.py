@@ -316,7 +316,7 @@ class Genome():
                   callbacks=[early_stopper, history]
                   )
 
-        #print(file_name)
+        print("Batch sizem: " + str(batch_size))
         model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '_run_' + str(run_n) + '_' + str(self.u_ID) + '.h5')
         #sys.exit()
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)

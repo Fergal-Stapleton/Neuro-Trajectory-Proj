@@ -104,9 +104,9 @@ def main():
     # NAIVE - RANDOM FILL W/ ACCURACY (not very good but matched GitHub code most closely)
     #mo_type = 'naive-rand'
     # NAIVE - TOURNAMENT SELECTION W/ OBJECTIVE AGGREGATE (as described in the NeuroEvolutionary paper)
-    mo_type = 'naive-tournament-select'
+    #mo_type = 'naive-tournament-select'
     # NSGA-II
-    #mo_type = 'nsga-ii'
+    mo_type = 'nsga-ii'
 
     time_str = time.strftime("%Y-%m-%d_%H %M")
     path = PATH_SAVE_FIG + str(time_str) + '_' + str(run_num)
@@ -114,8 +114,8 @@ def main():
     # Can potentially have more models here
     if(MODEL_NAME == 'lstm_sliding'):
         parameters = PARAMETERS_LSTM
-        #model_function = model.lstm_model
-        model_function = model.lstm_test
+        model_function = model.lstm_model
+        #model_function = model.lstm_test
 
     print('\nLoad dataset...')
     data_set = load_data(MODEL_NAME)

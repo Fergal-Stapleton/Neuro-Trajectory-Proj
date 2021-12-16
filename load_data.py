@@ -57,12 +57,13 @@ class LoadData(object):
         self.Obj_validation  = None
         # Slide
         self.slide = True
-        self.shuffle = True
+        self.shuffle = False
         # Paths condition for ICHEC
         self.absolute_path_cond = False
-        self.absolute_path = '/ichec/work/nuim01/fergals/neuroTraj2/'
         #self.absolute_path = '/ichec/work/nuim01/fergals/neuroTraj2/'
-
+        #self.absolute_path = '/ichec/work/nuim01/fergals/neuroTraj2/'
+        self.absolute_path = '/ichec/work/mucom002c/fergals/neuroTraj2/'
+        self.large_data = True
         # Max and Min - need to revert to real coordinates
         # tau = 5
         #-5.66668848861903 Max X:51.31507599420365
@@ -175,7 +176,7 @@ class LoadData(object):
         inc = int(file_index[0])
         start_flag = True
         sync_flag = True
-        large_data = True
+        #large_data = True
         for i in range(len(file_index)):
             #print(file_index[i])
             #print(inc)
@@ -410,13 +411,13 @@ class LoadData(object):
             # X data or sequences can be many GB is size. It is best to split this as often as possible if too large
             # Since we our data already has gaps and assuming the bumber of images between gaps will never be too large
             # we will save each batch as an npy file.
-            if(large_data == False):
+            if(self.large_data == False):
                 final_sequences = np.concatenate((final_sequences, np.delete(sequences, np.s_[:offset], 0)), axis=0)
                 del sequences
                 gc.collect()
 
             # to avoid running out of ram we can split files
-            elif(large_data == True):
+            elif(self.large_data == True):
                 # This is kinda dumb but lets not reinvent the wheel
                 final_sequences = np.concatenate((final_sequences, np.delete(sequences, np.s_[:offset], 0)), axis=0)
                 if self.absolute_path_cond == False:
@@ -427,7 +428,7 @@ class LoadData(object):
                 final_sequences = np.empty(shape=(0,self.image_sequence_length,self.image_width, self.image_height,self.image_channels),dtype=np.int16)
 
 
-        if(large_data == False):
+        if(self.large_data == False):
             del df_tmp
             del df_y
             gc.collect()
@@ -459,7 +460,7 @@ class LoadData(object):
                 sys.exit()
             return final_sequences, y
 
-        elif(large_data == True):
+        elif(self.large_data == True):
             if self.absolute_path_cond == False:
                 fpath = './data_sets/merge/tmp.npy'
             else:
@@ -670,17 +671,17 @@ class LoadData(object):
         else:
             path_to_data = self.absolute_path + 'data_sets/' + self.type
         self.X_train = np.array(np.load(path_to_data + '/X_train.npy'), dtype=np.float16)
-        self.X_train = self.X_train[:1000]
+        #self.X_train = self.X_train[:1000]
         self.X_valid = np.array(np.load(path_to_data + '/X_valid.npy'), dtype=np.float16)
-        self.X_valid = self.X_valid[:200]
+        #self.X_valid = self.X_valid[:200]
         self.X_test = np.array(np.load(path_to_data + '/X_test.npy'), dtype=np.float16)
-        self.X_test = self.X_test[:200]
+        #self.X_test = self.X_test[:200]
         self.Y_train = np.array(np.load(path_to_data + '/Y_train.npy'), dtype=np.float16)
-        self.Y_train = self.Y_train[:1000]
+        #self.Y_train = self.Y_train[:1000]
         self.Y_valid = np.array(np.load(path_to_data + '/Y_valid.npy'), dtype=np.float16)
-        self.Y_valid = self.Y_valid[:200]
+        #self.Y_valid = self.Y_valid[:200]
         self.Y_test = np.array(np.load(path_to_data + '/Y_test.npy'), dtype=np.float16)
-        self.Y_test = self.Y_test[:200]
+        #self.Y_test = self.Y_test[:200]
         self.data_was_loaded = True
 
     def save_processed_data(self):

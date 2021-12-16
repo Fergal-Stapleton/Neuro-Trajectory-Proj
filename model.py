@@ -15,12 +15,15 @@ def lstm_model(X_train_shape, parameters):
     #print(parameters)
     hidden_units = int(parameters[0])
     dropout_parameter = float(parameters[1])
-    loss_function = str(parameters[2])
-    optimizer = str(parameters[3])
-    lstm_cells = int(parameters[4])
-    dropout = float(parameters[5])
-    cnn_flattened_layer_1 = int(parameters[6])
-    cnn_flattened_layer_2 = int(parameters[7])
+    momentum = float(parameters[2])
+    loss_function = str(parameters[3])
+    optimizer = str(parameters[4])
+    lstm_cells = int(parameters[5])
+    dropout = float(parameters[6])
+    cnn_flattened_layer_1 = int(parameters[7])
+    cnn_flattened_layer_2 = int(parameters[8])
+    lstm_flattened_layer_1 = int(parameters[9])
+    lstm_flattened_layer_2 = int(parameters[10])
     #lr = int(parameters[8])
 
     print('Build model...')
@@ -37,34 +40,42 @@ def lstm_model(X_train_shape, parameters):
     cnn_model = Sequential()
 
     # Add our first convolutional layer
-    cnn_model.add(Conv2D(filters=64,
+    cnn_model.add((Conv2D(filters=64,
                    kernel_size=(9, 9),
                    strides=(4, 4),
                    padding='valid',
                    data_format='channels_last',
                    input_shape=input_shape[1:],
                    activation='relu',
-                   name='conv1'))
+                   name='conv1')))
+    cnn_model.add(BatchNormalization(momentum=momentum))
+    cnn_model.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool1'))
+
+    # Add second convolutional layer.
+    cnn_model.add(ZeroPadding2D(padding=(2, 2)))
     cnn_model.add(Conv2D(filters=32,
-                    kernel_size=(5, 5),
-                    padding='valid',
-                    strides=(2, 2),
-                    activation='relu',
-                    name='conv2'))
+                          kernel_size=(5, 5),
+                          padding='valid',
+                          strides=(2, 2),
+                          activation='relu',
+                          name='conv2'))
+    cnn_model.add(BatchNormalization(momentum=momentum))
     cnn_model.add(Conv2D(filters=32,
                         kernel_size=(3, 3),
                         padding='valid',
                         strides=(1, 1),
                         activation='relu',
                         name='conv3'))
+    cnn_model.add(BatchNormalization(momentum=momentum))
     cnn_model.add(Conv2D(filters=32,
                         kernel_size=(3, 3),
                         padding='valid',
                         strides=(1, 1),
                         activation='relu',
                         name='conv4'))
+    cnn_model.add(BatchNormalization(momentum=momentum))
     #cnn_model.add(BatchNormalization())
-    #cnn_model.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool2'))
+    cnn_model.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool2'))
     cnn_model.add(Flatten(name='flat'))
 
     # # Add Fully connected ANN
@@ -113,10 +124,10 @@ def lstm_model(X_train_shape, parameters):
             model.add((LSTM((hidden_units), return_sequences=False)))
             model.add(Dropout(dropout_parameter))
 
-    model.add(Dense(units=256, activation='relu'))
-    model.add(dropout)
-    model.add(Dense(units=128, activation='relu'))
-    model.add(dropout)
+    model.add(Dense(units=lstm_flattened_layer_1, activation='relu'))
+    model.add(Dropout(dropout))
+    model.add(Dense(units=lstm_flattened_layer_2, activation='relu'))
+    model.add(Dropout(dropout))
     model.add(Dense(DATA_SET_INFO['num_classes'], activation='relu'))
 
     model.compile(loss=loss_function, optimizer=optimizer, metrics=['mse'])
@@ -133,12 +144,14 @@ def lstm_test(X_train_shape, parameters):
     #print(parameters)
     #lr = int(parameters[8])
 
-    print('Build model...')
+    print('Build model')
     print('X_train shape: ', X_train_shape)
     print('Final layer', DATA_SET_INFO['num_classes'])
 
     input_shape = (int((DATA_SET_INFO['num_classes']+ 2) /2), DATA_SET_INFO['image_width'],
                    DATA_SET_INFO['image_height'], DATA_SET_INFO['image_channels'])
+
+    #print('Batch size: ', PARAMETERS_LSTM['batch_size'])
 
     #logging.info("Architecture:%s,%s,%s,%s,%s" % (hidden_units, dropout_parameter, loss_function, optimizer, lstm_cells))
 
@@ -157,7 +170,7 @@ def lstm_test(X_train_shape, parameters):
                    input_shape=input_shape[1:],
                    activation='relu',
                    name='conv1')))
-    cnn_model.add(BatchNormalization(momentum=0.9))
+    cnn_model.add(BatchNormalization(momentum=0.95))
     cnn_model.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool1'))
 
     # Add second convolutional layer.
@@ -168,21 +181,21 @@ def lstm_test(X_train_shape, parameters):
                           strides=(2, 2),
                           activation='relu',
                           name='conv2'))
-    cnn_model.add(BatchNormalization(momentum=0.9))
+    cnn_model.add(BatchNormalization(momentum=0.95))
     cnn_model.add(Conv2D(filters=32,
                         kernel_size=(3, 3),
                         padding='valid',
                         strides=(1, 1),
                         activation='relu',
                         name='conv3'))
-    cnn_model.add(BatchNormalization(momentum=0.9))
+    cnn_model.add(BatchNormalization(momentum=0.95))
     cnn_model.add(Conv2D(filters=32,
                         kernel_size=(3, 3),
                         padding='valid',
                         strides=(1, 1),
                         activation='relu',
                         name='conv4'))
-    cnn_model.add(BatchNormalization(momentum=0.9))
+    cnn_model.add(BatchNormalization(momentum=0.95))
     #cnn_model.add(BatchNormalization())
     cnn_model.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool2'))
     cnn_model.add(Flatten(name='flat'))
@@ -197,17 +210,22 @@ def lstm_test(X_train_shape, parameters):
     model.add(TimeDistributed(cnn_model, input_shape=input_shape))
 
     model.add((LSTM(256, return_sequences=True)))
-    model.add(Dropout(0.2))
+    model.add(Dropout(0.1))
+    #model.add(Dropout(0.2))
+
+    model.add((LSTM(256, return_sequences=True)))
+    model.add(Dropout(0.1))
     #model.add(Dropout(0.2))
 
     model.add((LSTM(256, return_sequences=False)))
-    model.add(Dropout(0.2))
+    model.add(Dropout(0.1))
         #model.add(Dropout(0.1))
 
     model.add(Dense(units=256, activation='relu'))
     cnn_model.add(Dropout(0.1))
     model.add(Dense(units=128, activation='relu'))
     cnn_model.add(Dropout(0.1))
+
     model.add(Dense(DATA_SET_INFO['num_classes'], activation='relu'))
 
     # Set Optimizer
@@ -216,8 +234,6 @@ def lstm_test(X_train_shape, parameters):
 
     print("*** Test Model ***")
     print(model.summary())
-
-
 
 
     return model
