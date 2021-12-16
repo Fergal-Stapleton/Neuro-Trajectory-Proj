@@ -21,7 +21,8 @@ conda activate nnt-gpu
 conda deactivate
 ```
 
-If running on ICHEC don't activate the environment as this is handled in sbatch file, however the environment still needs to be set up and newest version of CUDA installed
+If running on ICHEC don't activate the environment as this is handled in sbatch file, however the environment still needs to be set up and newest version of CUDA installed.
+Insure you are in the nnt-gpu environment before running the following commands.
 
 ```
 conda install -c conda-forge cudatoolkit-dev
@@ -36,6 +37,25 @@ The script which runs the Neuroevolutionary code is
 
 ```
 python main.py
+```
+
+This has been tested on Windows. 
+
+Some properties are hardcoded that are not yet in the config. The most important of these are
+
+load_data.py:
+
+```
+self.slide = True
+self.shuffle = True
+self.absolute_path_cond = True
+self.large_data = True #(Warning: Only works on Windows, set to false if using Mac or Linux)
+```
+genetic_algorithm.py
+
+```
+self.population = 6
+self.generations = 3
 ```
 
 If collecting new data an updated version of GridSim has been included that records highway data.
