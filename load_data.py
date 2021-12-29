@@ -60,9 +60,9 @@ class LoadData(object):
         self.shuffle = False
         # Paths condition for ICHEC
         self.absolute_path_cond = False
+        self.absolute_path = '/ichec/work/nuim01/fergals/neuroTraj2/'
         #self.absolute_path = '/ichec/work/nuim01/fergals/neuroTraj2/'
-        #self.absolute_path = '/ichec/work/nuim01/fergals/neuroTraj2/'
-        self.absolute_path = '/ichec/work/mucom002c/fergals/neuroTraj2/'
+        #self.absolute_path = '/ichec/work/mucom002c/fergals/neuroTraj2/'
         self.large_data = True
         # Max and Min - need to revert to real coordinates
         # tau = 5

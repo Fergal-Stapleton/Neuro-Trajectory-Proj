@@ -59,6 +59,8 @@ class GeneticAlgorithm:
             params_csv.append(str(i+1))
             params_csv.append(str(genome.u_ID))
             params_csv.append(genome.accuracy)
+            params_csv.append(genome.score)
+            #params_csv.append(genome.history)
             #self.x_err, self.x_max, self.y_err, self.y_max
             params_csv.append(genome.x_err)
             params_csv.append(genome.x_max)
@@ -92,6 +94,8 @@ class GeneticAlgorithm:
 
             params_csv.append(str(i+1))
             params_csv.append(genome.accuracy)
+            params_csv.append(genome.score)
+            #params_csv.append(genome.history)
             params_csv.append(genome.u_ID)
             #self.x_err, self.x_max, self.y_err, self.y_max
             params_csv.append(genome.x_err)
@@ -139,6 +143,8 @@ class GeneticAlgorithm:
         table_head.append("Gen")
         table_head.append("ID")
         table_head.append("accuracy")
+        table_head.append("score")
+        #table_head.append("history")
         table_head.append("x_err")
         table_head.append("x_max")
         table_head.append("y_err")
@@ -214,6 +220,7 @@ class GeneticAlgorithm:
         table_head.append("Gen")
         table_head.append("ID")
         table_head.append("accuracy")
+        table_head.append("score")
         table_head.append("x_err")
         table_head.append("x_max")
         table_head.append("y_err")

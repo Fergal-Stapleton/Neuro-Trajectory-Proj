@@ -29,6 +29,7 @@ class Genome():
         self.y_err = 0.0
         self.y_max = 0.0
         self.fitness_vector = [0.0, 0.0, 0.0]
+        self.score = None
         self.all_possible_genes = all_possible_genes
         self.rank = None
         self.crowding_distance = None
@@ -117,6 +118,7 @@ class Genome():
         self.geneparam = geneparam
         self.update_hash()
 
+    # Training for NSGA-II
     def train_and_score_simplified(self, model_train, dataset, path, i, gen_max, run_n):
         logging.info("Getting training samples")
         logging.info("Compling Keras model")
@@ -145,15 +147,15 @@ class Genome():
         parameters.append(self.geneparam['batch_size'])
         parameters.append(self.geneparam['epochs'])
         # Helper: Early stopping.
-        early_stopper = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=5, verbose=0, mode='auto')
+        early_stopper = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=10, verbose=0, mode='auto')
         # FS: 18/07/2021: This is problematic as it is set up for classification
         #                 I will comment out line 49 and 50 from training_history_plot
         history = TrainingHistoryPlot(path, dataset, parameters, i)
 
         print("****** CHECK *******")
         np.set_printoptions(threshold=np.inf)
-        print(dataset.Y_train)
-        sys.exit()
+        #print(dataset.Y_train)
+        #sys.exit()
 
         model.fit(dataset.X_train, dataset.Y_train,
                   batch_size=batch_size,
@@ -169,9 +171,9 @@ class Genome():
         model.save(filepath = str(path) + '/models/' + self.genome_filename)
         #filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '_run_' + str(run_n) + '.h5'
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
-        prediction = model.predict(dataset.X_test)
+        prediction = model.predict(dataset.X_valid)
 
-        real = copy.deepcopy(dataset.Y_test)
+        real = copy.deepcopy(dataset.Y_valid)
         #dataset.Y_train
         def denormalize(array, max, min):
             return array*(max - min) + min
@@ -199,9 +201,6 @@ class Genome():
         #print(real_rescale)
         #print(prediction_rescale)
 
-        pred_acc = self.rmse(prediction, real, image_sequence_length)
-        x_err, x_max = self.x_error(prediction, real, image_sequence_length)
-        y_err, y_max = self.y_error(prediction, real, image_sequence_length)
 
         # Revert our prediction with ymin and ymax
 
@@ -227,15 +226,20 @@ class Genome():
         real = y_addition(real)
 
         np.set_printoptions(precision=3)
-        for i in range(len(real)):
-            print(str(prediction[i]) + '\r')
-            print(str(real[i]) + '\r')
-            print("\n")
+        #for i in range(len(real)):
+        #    print(str(prediction[i]) + '\r')
+        #    print(str(real[i]) + '\r')
+        #    print("\n")
         #dataset.Y_valid = y_addition(dataset.Y_valid)
 
 
         obj_training_reverse_scale = obj_training
         prediction_rescale = prediction
+
+        pred_acc = self.rmse_y_asymm(prediction, real, image_sequence_length)
+        x_err, x_max = self.x_error(prediction, real, image_sequence_length)
+        y_err, y_max = self.y_error(prediction, real, image_sequence_length)
+
 
         # This needs to be found out from GridSim or by diff'n timestamps of images
         t_delta = 0.2
@@ -252,8 +256,9 @@ class Genome():
 
         K.clear_session()
 
-        return pred_acc, x_err, x_max, y_err, y_max, L
+        return pred_acc, x_err, x_max, y_err, y_max, L, score
 
+    # Training for Naive approach
     def train_and_score(self, model_train, dataset, path, i, gen_max, run_n):
         logging.info("Getting training samples")
         logging.info("Compling Keras model")
@@ -320,13 +325,14 @@ class Genome():
         model.save(filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '_run_' + str(run_n) + '_' + str(self.u_ID) + '.h5')
         #sys.exit()
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
-        prediction = model.predict(dataset.X_test)
+        prediction = model.predict(dataset.X_valid)
+        #results = model.evaluate(x_test, y_test, batch_size=128)
 
 
         print("print length of predictions: " + str(prediction.shape[0]))
         #print(prediction)
         #print(dataset.Y_train)
-        real = copy.deepcopy(dataset.Y_test)
+        real = copy.deepcopy(dataset.Y_valid)
         #dataset.Y_train
         def denormalize(array, max, min):
             return array*(max - min) + min
@@ -354,9 +360,7 @@ class Genome():
         #print('prediction')
         #print(prediction_rescale)
 
-        pred_acc = self.rmse(prediction, real, image_sequence_length)
-        x_err, x_max = self.x_error(prediction, real, image_sequence_length)
-        y_err, y_max = self.y_error(prediction, real, image_sequence_length)
+
 
         # Revert our prediction with ymin and ymax
 
@@ -380,6 +384,11 @@ class Genome():
         obj_training = y_addition(obj_training)
         prediction = y_addition(prediction)
         real = y_addition(real)
+
+        #pred_acc = self.rmse(prediction, real, image_sequence_length)
+        pred_acc = self.rmse_y_asymm(prediction, real, image_sequence_length)
+        x_err, x_max = self.x_error(prediction, real, image_sequence_length)
+        y_err, y_max = self.y_error(prediction, real, image_sequence_length)
 
         np.set_printoptions(precision=3)
         for i in range(len(real)):
@@ -417,7 +426,7 @@ class Genome():
         # we just need to know the final scores and the architecture
 
         # 1 is accuracy. 0 is loss.
-        return pred_acc, x_err, x_max, y_err, y_max, L
+        return pred_acc, x_err, x_max, y_err, y_max, L, score
 
     def rmse(self, pred, Y_train, image_sequence_length):
         acc_list = []
@@ -430,6 +439,24 @@ class Genome():
                 P_x = Y_train[i][j - 1]
                 P_y = Y_train[i][j - 2]
                 temp += np.sqrt((P_hat_x  - P_x)**2 + (P_hat_y - P_y)**2)
+            acc_list.append(temp/image_sequence_length)
+        pred_acc = sum(acc_list)/pred.shape[0]
+        return pred_acc
+
+    def rmse_y_asymm(self, pred, Y_train, image_sequence_length):
+        acc_list = []
+        x_tau = (image_sequence_length-1)*2 -1
+        #sign_count = 1
+        for i in range(pred.shape[0]):
+            temp = 0.0
+            for j in range(2, x_tau):
+                #P_hat_x = pred[i][j - 1] # starts at 1
+                P_hat_x = pred[i][j - 2] # starts at 0
+                #P_x = Y_train[i][j - 1]
+                P_x = Y_train[i][j - 2]
+                temp += np.sqrt((np.abs(P_hat_x) - np.abs(P_x))**2)
+                #if (np.sign(P_hat_x) == np.sign(P_hat_x)):
+                #    sign_count +=1
             acc_list.append(temp/image_sequence_length)
         pred_acc = sum(acc_list)/pred.shape[0]
         return pred_acc
@@ -465,12 +492,12 @@ class Genome():
     def train(self, model, trainingset, path, i, gen_max, run_n):
         #don't bother retraining ones we already trained
         if self.accuracy == 0.0:
-            self.accuracy, self.x_err, self.x_max, self.y_err, self.y_max, self.fitness_vector = self.train_and_score(model, trainingset, path, i, gen_max, run_n)
+            self.accuracy, self.x_err, self.x_max, self.y_err, self.y_max, self.fitness_vector, self.score = self.train_and_score(model, trainingset, path, i, gen_max, run_n)
 
     def train_short(self, model, trainingset, path, i, gen_max, run_n):
         #don't bother retraining ones we already trained
         if self.accuracy == 0.0:
-            self.accuracy,self.x_err,self.x_max,self.y_err,self.y_max,self.fitness_vector = self.train_and_score_simplified(model, trainingset, path, i, gen_max, run_n)
+            self.accuracy,self.x_err,self.x_max,self.y_err,self.y_max,self.fitness_vector, self.score = self.train_and_score_simplified(model, trainingset, path, i, gen_max, run_n)
 
     def print_genome(self):
         """Print out a genome."""
