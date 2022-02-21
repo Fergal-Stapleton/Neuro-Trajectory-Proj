@@ -18,6 +18,12 @@ import pandas
 import matplotlib.pyplot as plt
 from pandas.plotting import parallel_coordinates
 
+def shuffler(X, Y):
+    assert len(X) == len(Y)
+    # Easier to use indexing rather than trying to re-combine dimensionally mismatched arrays
+    ix_perm = np.random.RandomState(seed=123).permutation(len(X))
+    return X[ix_perm], Y[ix_perm]
+
 # Setup logging.
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',
@@ -31,6 +37,9 @@ def load_data(MODEL_NAME):
 
     if data_set.absolute_path_cond == False:
         path_to_npy = './data_sets/' + MODEL_NAME + '/X_train.npy'
+
+
+        #self.data_was_loaded = True
     else:
         path_to_npy = data_set.absolute_path + 'data_sets/' + MODEL_NAME + '/X_train.npy'
 
@@ -60,51 +69,18 @@ def l1_objective(p, image_sequence_length):
             # Y_test [0.1, 5.5, 0.3, 10.7]
             # Since our start point is implicitly always [0.0, 0.0]
             # (image_sequence_length-1)*2 -1 last coordinate
-            x_tau = (image_sequence_length-1)*2 -1
+            x_tau = (image_sequence_length-1)*2 -2
             # (image_sequence_length-1)*2 -1 Second last coordinate
-            y_tau = (image_sequence_length-1)*2 -2
+            y_tau = (image_sequence_length-1)*2 -1
             # P_ego <t+0> - P_dest <t+tau>
             temp += np.sqrt((p[i][x_tau] - 0.0)**2 + (p[i][y_tau] - 0.0)**2)
             flag = 0
         # these go up by 2,  P ego <t+i> - P dest <t+tau> , where i > 0
-        for j in range(2, x_tau):
+        for j in range(2, x_tau, 2):
             P_dest_x = p[i][x_tau] # starts at 3
-            P_ego_x = p[i][j - 1] # starts at 1
+            P_ego_x = p[i][j - 2] # starts at 1
             P_dest_y = p[i][y_tau] # starts at 2
-            P_ego_y = p[i][j - 2] # starts at 0
-            temp += np.sqrt((P_ego_x  - P_dest_x)**2 + (P_ego_y - P_dest_y)**2)
-        dest_list.append(temp/image_sequence_length)
-    l1 = dest_list
-    return l1
-
-# Eqn 3. NeuroTrajectory distance-based feedback
-def l1_objective_original(p, image_sequence_length):
-    """
-    Calculate Eqn 3. NeuroTrajectory distance-based feedback
-    :params: Numpy array of input data
-    :return: list, each element is the distance-based feedback corresponding to the ith sequence of OGs
-    """
-    l1 = 0.0
-    dest_list = []
-    for i in range(p.shape[0]):
-        temp = 0.0
-        flag = 1
-        if flag == 1:
-            # Y_test [0.1, 5.5, 0.3, 10.7]
-            # Since our start point is implicitly always [0.0, 0.0]
-            # (image_sequence_length-1)*2 -1 last coordinate
-            x_tau = (image_sequence_length-1)*2 -1
-            # (image_sequence_length-1)*2 -1 Second last coordinate
-            y_tau = (image_sequence_length-1)*2 -2
-            # P_ego <t+0> - P_dest <t+tau>
-            temp += np.sqrt((p[i][x_tau] - 0.0)**2 + (p[i][y_tau] - 0.0)**2)
-            flag = 0
-        # these go up by 2,  P ego <t+i> - P dest <t+tau> , where i > 0
-        for j in range(2, x_tau):
-            P_dest_x = p[i][x_tau] # starts at 3
-            P_ego_x = p[i][j - 1] # starts at 1
-            P_dest_y = p[i][y_tau] # starts at 2
-            P_ego_y = p[i][j - 2] # starts at 0
+            P_ego_y = p[i][j - 1] # starts at 0
             temp += np.sqrt((P_ego_x  - P_dest_x)**2 + (P_ego_y - P_dest_y)**2)
         dest_list.append(temp/image_sequence_length)
     l1 = dest_list
@@ -135,7 +111,7 @@ def l2_objective(p, t_delta, slide, image_sequence_length):
             #
             temp += np.abs((np.arctan2(p[i][2] - p[i][0], p[i][3] - p[i][1]) - np.arctan2(p[i][0] - 0.0, p[i][1] - 0.0))/t_delta)
         if image_sequence_length > 3:
-            for j in range(2,vector_len):
+            for j in range(2,vector_len, 2):
                 temp += np.abs((np.arctan2(p[i][j+2] - p[i][j], p[i][j+3] - p[i][j+1]) - np.arctan2(p[i][j] - p[i][j-2], p[i][j+1] - p[i][j-1]))/t_delta)
         vd.append(temp)
     l2 = vd
@@ -166,14 +142,14 @@ def l3_objective(p, t_delta, max_vel, slide, image_sequence_length):
             temp += np.abs(max_vel - ((p[i][1] - 0.0)/t_delta))
             flag = 0
         # these go up by 2
-        for j in range(2,vector_len):
+        for j in range(2,vector_len, 2):
             idx += 1
             temp += np.abs(max_vel - ((p[i][j+1] - p[i][j - 1])/t_delta))
         vf.append(temp/image_sequence_length)
     #print(vf)
     l3 = vf
     return l3
-
+	
 def main():
 
     MODEL_NAME = 'lstm_sliding'
@@ -183,6 +159,24 @@ def main():
     print('\nLoad dataset...')
     data_set = load_data(MODEL_NAME)
     print('Done! \n')
+    
+    data_set.X_test = copy.deepcopy(data_set.X_train[2001:2500])
+
+
+    data_set.X_train = data_set.X_train[:2000]
+
+
+
+    data_set.X_train, data_set.Y_train = shuffler(data_set.X_train, data_set.Y_train)
+    # Post shuffle split
+
+    #self.X_full = copy.deepcopy(self.X_train)
+    #self.Y_full = copy.deepcopy(self.Y_train)
+
+    data_set.X_valid = copy.deepcopy(data_set.X_train[1501:2000])
+    data_set.Y_valid = copy.deepcopy(data_set.Y_train[1501:2000])
+    data_set.X_train = copy.deepcopy(data_set.X_train[:1500])
+    data_set.Y_train = copy.deepcopy(data_set.Y_train[:1500])
 
 
     # data_set.Y_train

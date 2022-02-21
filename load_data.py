@@ -10,6 +10,7 @@ from loadTraj import LoadTraj
 import sys
 from natsort import index_natsorted
 import random
+import copy
 #from pympler import asizeof
 
 
@@ -39,6 +40,8 @@ class LoadData(object):
         self.Y_valid = None
         self.X_test = None
         self.Y_test = None
+        self.X_full = None
+        self.Y_full = None
         # Nee this for caluclating velocity based objectives - delta v = delta x / delta t
         self.t_delta_train = None
         self.t_delta_test = None
@@ -399,7 +402,7 @@ class LoadData(object):
                 offset = self.image_sequence_length
             else:
                 offset = 1
-            df_tmp = df_tmp[:-offset]
+            df_tmp = df_tmp[offset:]
             if df_y_process.empty:
                 df_y_process = df_tmp
             else:
@@ -412,14 +415,14 @@ class LoadData(object):
             # Since we our data already has gaps and assuming the bumber of images between gaps will never be too large
             # we will save each batch as an npy file.
             if(self.large_data == False):
-                final_sequences = np.concatenate((final_sequences, np.delete(sequences, np.s_[:offset], 0)), axis=0)
+                final_sequences = np.concatenate((final_sequences, np.delete(sequences, np.s_[-offset:], 0)), axis=0)
                 del sequences
                 gc.collect()
 
             # to avoid running out of ram we can split files
             elif(self.large_data == True):
                 # This is kinda dumb but lets not reinvent the wheel
-                final_sequences = np.concatenate((final_sequences, np.delete(sequences, np.s_[:offset], 0)), axis=0)
+                final_sequences = np.concatenate((final_sequences, np.delete(sequences, np.s_[-offset:], 0)), axis=0)
                 if self.absolute_path_cond == False:
                     path_where_to_save = './data_sets/tmp_holding/'
                 else:
@@ -671,17 +674,34 @@ class LoadData(object):
         else:
             path_to_data = self.absolute_path + 'data_sets/' + self.type
         self.X_train = np.array(np.load(path_to_data + '/X_train.npy'), dtype=np.float16)
-        #self.X_train = self.X_train[:1000]
-        self.X_valid = np.array(np.load(path_to_data + '/X_valid.npy'), dtype=np.float16)
-        #self.X_valid = self.X_valid[:200]
-        self.X_test = np.array(np.load(path_to_data + '/X_test.npy'), dtype=np.float16)
-        #self.X_test = self.X_test[:200]
         self.Y_train = np.array(np.load(path_to_data + '/Y_train.npy'), dtype=np.float16)
-        #self.Y_train = self.Y_train[:1000]
-        self.Y_valid = np.array(np.load(path_to_data + '/Y_valid.npy'), dtype=np.float16)
+
+        self.Y_test = copy.deepcopy(self.Y_train[2001:2500])
+        self.X_test = copy.deepcopy(self.X_train[2001:2500])
+
+        #self.X_valid = np.array(np.load(path_to_data + '/X_valid.npy'), dtype=np.float16)
+        #self.X_valid = self.X_valid[:200]
+        #self.X_test = np.array(np.load(path_to_data + '/X_test.npy'), dtype=np.float16)
+
+        self.X_train = self.X_train[:2000]
+        self.Y_train = self.Y_train[:2000]
+        #self.Y_valid = np.array(np.load(path_to_data + '/Y_valid.npy'), dtype=np.float16)
         #self.Y_valid = self.Y_valid[:200]
-        self.Y_test = np.array(np.load(path_to_data + '/Y_test.npy'), dtype=np.float16)
-        #self.Y_test = self.Y_test[:200]
+        #self.Y_test = np.array(np.load(path_to_data + '/Y_test.npy'), dtype=np.float16)
+
+
+
+        self.X_train, self.Y_train = self.shuffler(self.X_train, self.Y_train)
+        # Post shuffle split
+
+        self.X_full = copy.deepcopy(self.X_train)
+        self.Y_full = copy.deepcopy(self.Y_train)
+
+        self.X_valid = copy.deepcopy(self.X_train[1501:2000])
+        self.Y_valid = copy.deepcopy(self.Y_train[1501:2000])
+        self.X_train = copy.deepcopy(self.X_train[:1500])
+        self.Y_train = copy.deepcopy(self.Y_train[:1500])
+
         self.data_was_loaded = True
 
     def save_processed_data(self):
@@ -733,5 +753,5 @@ class LoadData(object):
     def shuffler(X, Y):
         assert len(X) == len(Y)
         # Easier to use indexing rather than trying to re-combine dimensionally mismatched arrays
-        ix_perm = np.random.permutation(len(X))
+        ix_perm = np.random.RandomState(seed=123).permutation(len(X))
         return X[ix_perm], Y[ix_perm]

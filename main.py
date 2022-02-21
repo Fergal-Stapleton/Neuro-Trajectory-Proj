@@ -104,6 +104,7 @@ def main():
     # NAIVE - RANDOM FILL W/ ACCURACY (not very good but matched GitHub code most closely)
     #mo_type = 'naive-rand'
     # NAIVE - TOURNAMENT SELECTION W/ OBJECTIVE AGGREGATE (as described in the NeuroEvolutionary paper)
+    # - *** This is used in experiments ***
     #mo_type = 'naive-tournament-select'
     # NSGA-II
     mo_type = 'nsga-ii'
@@ -114,8 +115,9 @@ def main():
     # Can potentially have more models here
     if(MODEL_NAME == 'lstm_sliding'):
         parameters = PARAMETERS_LSTM
-        model_function = model.lstm_model
-        #model_function = model.lstm_test
+        #model_function = model.lstm_model
+        #model_function = model.lstm_autoencoder_model
+        model_function = model.lstm_test
 
     print('\nLoad dataset...')
     data_set = load_data(MODEL_NAME)
@@ -132,11 +134,10 @@ def main():
 
     #Y_train_rescale = denormalize(data_set.Y_train, data_set.ymax, data_set.ymin)
     Y_train_x_pos = data_set.Y_train[:, ::2]
-    Y_train_y_pos = data_set.Y_train[:, 1::2]
+    #Y_train_y_pos = data_set.Y_train[:, 1::2]
 
-    data_set.superscaler_x_min = np.amin(Y_train_x_pos)
-    data_set.superscaler_x_max = np.amax(Y_train_x_pos)
-
+    def normalize(array, min, max):
+        return (array - min)/ (max - min)
 
     def normalize_x(array, min, max):
         return (array[:, ::2] - min)/ (max - min)
@@ -159,29 +160,54 @@ def main():
             for j in range(array.shape[1]):
                 if array[i, j] > 10 and j < (array.shape[1]-1):
                     array[i, j] = array[i, j + 2]
+                    array[i, j - 1] = array[i, j + 1]
                 elif array[i, j] > 10 and j >= (array.shape[1]-1) :
                     array[i, j] = array[i, j - 2]
+                    array[i, j - 1] = array[i, j - 3]
         return array
+
+
 
     data_set.Y_train = y_subtract(data_set.Y_train)
     data_set.Y_test = y_subtract(data_set.Y_test)
     data_set.Y_valid = y_subtract(data_set.Y_valid)
 
-    data_set.Y_train[:, ::2]  = normalize_x(data_set.Y_train, data_set.superscaler_x_min, data_set.superscaler_x_max)
-    data_set.Y_test[:, ::2] = normalize_x(data_set.Y_test, data_set.superscaler_x_min, data_set.superscaler_x_max)
-    data_set.Y_valid[:, ::2] = normalize_x(data_set.Y_valid, data_set.superscaler_x_min, data_set.superscaler_x_max)
-
-
     data_set.Y_train = impute_next_pos(data_set.Y_train)
     data_set.Y_test = impute_next_pos(data_set.Y_test)
     data_set.Y_valid = impute_next_pos(data_set.Y_valid)
 
-    data_set.superscaler_y_min = np.amin(data_set.Y_train[:, 1::2])
-    data_set.superscaler_y_max = np.amax(data_set.Y_train[:, 1::2])
+    data_set.Y_full = y_subtract(data_set.Y_full)
+    data_set.Y_full = impute_next_pos(data_set.Y_full)
+
+    data_set.superscaler_x_min = np.amin(data_set.Y_full[:, ::2])
+    data_set.superscaler_x_max = np.amax(data_set.Y_full[:, ::2])
+    data_set.superscaler_y_min = np.amin(data_set.Y_full[:, 1::2])
+    data_set.superscaler_y_max = np.amax(data_set.Y_full[:, 1::2])
+
+
+    #data_set.Y_train  = normalize(data_set.Y_train, data_set.superscaler_x_min, data_set.superscaler_x_max)
+    #data_set.Y_test = normalize(data_set.Y_test, data_set.superscaler_x_min, data_set.superscaler_x_max)
+    #data_set.Y_valid = normalize(data_set.Y_valid, data_set.superscaler_x_min, data_set.superscaler_x_max)
+
+    data_set.Y_train[:, ::2]  = normalize_x(data_set.Y_train, data_set.superscaler_x_min, data_set.superscaler_x_max)
+    data_set.Y_test[:, ::2] = normalize_x(data_set.Y_test, data_set.superscaler_x_min, data_set.superscaler_x_max)
+    data_set.Y_valid[:, ::2] = normalize_x(data_set.Y_valid, data_set.superscaler_x_min, data_set.superscaler_x_max)
 
     data_set.Y_train[:, 1::2]  = normalize_y(data_set.Y_train, data_set.superscaler_y_min, data_set.superscaler_y_max)
     data_set.Y_test[:, 1::2]  = normalize_y(data_set.Y_test, data_set.superscaler_y_min, data_set.superscaler_y_max)
     data_set.Y_valid[:, 1::2]  = normalize_y(data_set.Y_valid, data_set.superscaler_y_min, data_set.superscaler_y_max)
+
+    #data_set.Y_train[:, 1::2]
+
+    #print(data_set.superscaler_x_min)
+    #print(data_set.superscaler_x_max)
+
+    #np.set_printoptions(precision=3)
+    #for i in range(len(data_set.Y_valid)):
+    #    print(str(data_set.Y_valid[i]) + '\r')
+    #    print("\n")
+
+    #sys.exit()
 
     # This has not really been tested, using model.lstm_test when testing
     if GA == 'no' and GS == 'no':
@@ -202,4 +228,6 @@ def main():
     print(data_set.superscaler_y_max)
 
 if __name__ == '__main__':
+    #var = str(int(sys.argv[1]) % 2)
+    #with tf.device('/device:GPU:'+var):
     main()

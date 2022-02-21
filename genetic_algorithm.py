@@ -19,8 +19,8 @@ class GeneticAlgorithm:
         self.params = params
         self.model = model
         self.total_run = 5
-        self.population = 10
-        self.generations = 3
+        self.population = 3
+        self.generations = 1
         self.run_n = run_num
         self.create_dirs()
 

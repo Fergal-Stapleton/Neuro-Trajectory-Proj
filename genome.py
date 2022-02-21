@@ -11,7 +11,8 @@ import numpy as np
 import sys
 import math
 from keras import backend as K
-
+import pandas as pd
+import matplotlib.pyplot as plt
 
 class Genome():
     """
@@ -147,7 +148,7 @@ class Genome():
         parameters.append(self.geneparam['batch_size'])
         parameters.append(self.geneparam['epochs'])
         # Helper: Early stopping.
-        early_stopper = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=10, verbose=0, mode='auto')
+        early_stopper = EarlyStopping(monitor='val_loss', min_delta=0.00005, patience=15, verbose=0, mode='auto')
         # FS: 18/07/2021: This is problematic as it is set up for classification
         #                 I will comment out line 49 and 50 from training_history_plot
         history = TrainingHistoryPlot(path, dataset, parameters, i)
@@ -172,10 +173,16 @@ class Genome():
         #filepath = str(path) + '/models/model_' + str(file_name) + '_gen_' + str(i) + '_run_' + str(run_n) + '.h5'
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
         prediction = model.predict(dataset.X_valid)
+        witheld = model.predict(dataset.X_test)
 
         real = copy.deepcopy(dataset.Y_valid)
+        witheld_real = copy.deepcopy(dataset.Y_test)
+
+        #pred_acc2 = ((prediction -  real)**2).mean(axis=1)
+        #pred_acc3 = self.mse(prediction, real, image_sequence_length)
+
         #dataset.Y_train
-        def denormalize(array, max, min):
+        def denormalize(array, min, max):
             return array*(max - min) + min
 
         def denormalize_x(array, min, max):
@@ -211,6 +218,22 @@ class Genome():
         obj_training = model.predict(dataset.X_train)
         #obj_training_reverse_scale = denormalize(obj_training, dataset.ymax, dataset.ymin)
 
+        #print(dataset.superscaler_x_min)
+        #print(dataset.superscaler_x_max)
+        #sys.exit()
+
+        #obj_training  = denormalize(obj_training, dataset.superscaler_x_min, dataset.superscaler_x_max)
+        #prediction = denormalize(prediction, dataset.superscaler_x_min, dataset.superscaler_x_max)
+        #real = denormalize(real, dataset.superscaler_x_min, dataset.superscaler_x_max)
+
+        #np.set_printoptions(precision=3)
+        #for i in range(len(real)):
+        #    print(str(prediction[i]) + '\r')
+        #    print(str(real[i]) + '\r')
+        #    print("\n")
+
+        #sys.exit()
+
         obj_training[:, ::2]  = denormalize_x(obj_training, dataset.superscaler_x_min, dataset.superscaler_x_max)
         prediction[:, ::2] = denormalize_x(prediction, dataset.superscaler_x_min, dataset.superscaler_x_max)
         real[:, ::2] = denormalize_x(real, dataset.superscaler_x_min, dataset.superscaler_x_max)
@@ -221,32 +244,79 @@ class Genome():
         real[:, 1::2]  = denormalize_y(real, dataset.superscaler_y_min, dataset.superscaler_y_max)
         #dataset.Y_valid[:, 1::2]  = normalize_y(dataset.Y_valid, dataset.superscaler_y_min, dataset.superscaler_y_max)
 
+        witheld[:, 1::2]  = denormalize_y(witheld, dataset.superscaler_y_min, dataset.superscaler_y_max)
+        witheld_real[:, 1::2]  = denormalize_y(witheld_real, dataset.superscaler_y_min, dataset.superscaler_y_max)
+
         obj_training = y_addition(obj_training)
         prediction = y_addition(prediction)
         real = y_addition(real)
+        witheld = y_addition(witheld)
+        witheld_real  = y_addition(witheld_real )
 
-        np.set_printoptions(precision=3)
+        #np.set_printoptions(precision=3)
         #for i in range(len(real)):
         #    print(str(prediction[i]) + '\r')
         #    print(str(real[i]) + '\r')
         #    print("\n")
+
+        colList = ['x1','y1','x2', 'y2', 'x3', 'y3', 'x4', 'y4', 'x5', 'y5','x6', 'y6', 'x7', 'y7']
+
+        #df_pred = pd.DataFrame(prediction,  columns=colList)
+        #df_zeros = pd.DataFrame(0, index=np.arange(df_pred.size), columns=colList)
+
+        #plt.xlabel('x')
+        #plt.ylabel('y')
+        #plt.title('Positional data for model with best accuracy in last Generation')
+        #plt.scatter(df_zeros['x1'], df_zeros['y1'], marker='*')
+        #plt.scatter(df_pred['x1'], df_pred['y1'], marker='o')
+        #plt.scatter(df_pred['x2'], df_pred['y2'], marker='x')
+        #plt.scatter(df_pred['x3'], df_pred['y3'], marker='x')
+        #plt.scatter(df_pred['x4'], df_pred['y4'], marker='x')
+        #plt.scatter(df_pred['x5'], df_pred['y5'], marker='x')
+        #plt.scatter(df_pred['x6'], df_pred['y6'], marker='x')
+        #plt.scatter(df_pred['x7'], df_pred['y7'], marker='x')
+        #plt.set_ylim([0, 50])
+        #plt.set_ylim([-5, 5])
+        #ax = plt.gca()
+        #ax.set_ylim([0, 50])
+        #ax.set_xlim([-5, 5])
+        #plt.show()
+        #plt.clf()
+        #K.clear_session()
+
         #dataset.Y_valid = y_addition(dataset.Y_valid)
 
 
         obj_training_reverse_scale = obj_training
         prediction_rescale = prediction
 
-        pred_acc = self.rmse_y_asymm(prediction, real, image_sequence_length)
+        pred_acc = self.rmse(prediction, real, image_sequence_length)
+
+        pred_acc2 = self.rmse(witheld, witheld_real, image_sequence_length)
+        #pred_acc2 = self.mse(prediction, real, image_sequence_length)
+        sign_loss = self.customLoss(prediction, real, image_sequence_length)
+        sign_loss2 = self.customLoss2(prediction, real, image_sequence_length)
         x_err, x_max = self.x_error(prediction, real, image_sequence_length)
         y_err, y_max = self.y_error(prediction, real, image_sequence_length)
 
 
+        print("\n")
+        print("\n")
+        score.append(pred_acc)
+        score.append(pred_acc2)
+        #score.append(pred_acc3)
+        score.append(sign_loss)
+        score.append(sign_loss2)
+        print(score)
+        print("\n")
+        print("\n")
+
         # This needs to be found out from GridSim or by diff'n timestamps of images
         t_delta = 0.2
         max_vel = 32.5 # 130 / 5 = 32.5
-        l1 = l1_objective(obj_training_reverse_scale, image_sequence_length)
-        l2 = l2_objective(obj_training_reverse_scale, t_delta, dataset.slide, image_sequence_length)
-        l3 = l3_objective(obj_training_reverse_scale, t_delta, max_vel, dataset.slide, image_sequence_length)
+        l1 = l1_objective(prediction, image_sequence_length)
+        l2 = l2_objective(prediction, t_delta, dataset.slide, image_sequence_length)
+        l3 = l3_objective(prediction, t_delta, max_vel, dataset.slide, image_sequence_length)
         if math.isnan(l1) or  math.isnan(l2) or  math.isnan(l3):
             print("One or more objectives were stored as NaN, exiting...")
             sys.exit()
@@ -326,6 +396,7 @@ class Genome():
         #sys.exit()
         score = model.evaluate(dataset.X_valid, dataset.Y_valid, verbose=0)
         prediction = model.predict(dataset.X_valid)
+
         #results = model.evaluate(x_test, y_test, batch_size=128)
 
 
@@ -386,15 +457,15 @@ class Genome():
         real = y_addition(real)
 
         #pred_acc = self.rmse(prediction, real, image_sequence_length)
-        pred_acc = self.rmse_y_asymm(prediction, real, image_sequence_length)
+        pred_acc = self.customLoss(prediction, real, image_sequence_length)
         x_err, x_max = self.x_error(prediction, real, image_sequence_length)
         y_err, y_max = self.y_error(prediction, real, image_sequence_length)
 
-        np.set_printoptions(precision=3)
-        for i in range(len(real)):
-            print(str(prediction[i]) + '\r')
-            print(str(real[i]) + '\r')
-            print("\n")
+        #np.set_printoptions(precision=3)
+        #for i in range(len(real)):
+        #    print(str(prediction[i]) + '\r')
+        #    print(str(real[i]) + '\r')
+        #    print("\n")
         #dataset.Y_valid = y_addition(dataset.Y_valid)
 
 
@@ -407,9 +478,9 @@ class Genome():
         # This needs to be found out from GridSim or by diff'n timestamps of images
         t_delta = 0.2
         max_vel = 32.5 # 130 / 5 = 32.5
-        l1 = l1_objective(obj_training_reverse_scale, image_sequence_length)
-        l2 = l2_objective(obj_training_reverse_scale, t_delta, dataset.slide, image_sequence_length)
-        l3 = l3_objective(obj_training_reverse_scale, t_delta, max_vel, dataset.slide, image_sequence_length)
+        l1 = l1_objective(prediction, image_sequence_length)
+        l2 = l2_objective(prediction, t_delta, dataset.slide, image_sequence_length)
+        l3 = l3_objective(prediction, t_delta, max_vel, dataset.slide, image_sequence_length)
         if math.isnan(l1) or  math.isnan(l2):
             print("One or more objectives were stored as NaN, exiting...")
             sys.exit()
@@ -430,16 +501,28 @@ class Genome():
 
     def rmse(self, pred, Y_train, image_sequence_length):
         acc_list = []
-        x_tau = (image_sequence_length-1)*2 -1
+        x_tau = image_sequence_length
         for i in range(pred.shape[0]):
             temp = 0.0
-            for j in range(2, x_tau):
-                P_hat_x = pred[i][j - 1] # starts at 1
-                P_hat_y = pred[i][j - 2] # starts at 0
-                P_x = Y_train[i][j - 1]
-                P_y = Y_train[i][j - 2]
-                temp += np.sqrt((P_hat_x  - P_x)**2 + (P_hat_y - P_y)**2)
-            acc_list.append(temp/image_sequence_length)
+            for j in range(x_tau):
+                P_hat_y = pred[i][j] # starts at 0
+                P_y = Y_train[i][j]
+                temp += np.sqrt((P_hat_y - P_y)**2)
+            acc_list.append(temp/x_tau)
+        pred_acc = sum(acc_list)/pred.shape[0]
+        return pred_acc
+
+    # Just for testing purposes
+    def mse(self, pred, Y_train, image_sequence_length):
+        acc_list = []
+        x_tau = image_sequence_length
+        for i in range(pred.shape[0]):
+            temp = 0.0
+            for j in range(x_tau):
+                P_hat_y = pred[i][j] # starts at 0
+                P_y = Y_train[i][j]
+                temp += (P_hat_y - P_y)**2
+            acc_list.append(temp/x_tau)
         pred_acc = sum(acc_list)/pred.shape[0]
         return pred_acc
 
@@ -449,7 +532,7 @@ class Genome():
         #sign_count = 1
         for i in range(pred.shape[0]):
             temp = 0.0
-            for j in range(2, x_tau):
+            for j in range(2, x_tau, 2):
                 #P_hat_x = pred[i][j - 1] # starts at 1
                 P_hat_x = pred[i][j - 2] # starts at 0
                 #P_x = Y_train[i][j - 1]
@@ -461,14 +544,59 @@ class Genome():
         pred_acc = sum(acc_list)/pred.shape[0]
         return pred_acc
 
+
+    def customLoss(self, pred, real, image_sequence_length):
+        acc_list = []
+        x_tau = (image_sequence_length-1)*2 -1
+        #sign_count = 1
+        for i in range(pred.shape[0]):
+            temp_x = 0.0
+            temp_y = 0.0
+            sign_count = 1
+            for j in range(2, x_tau, 2):
+                #P_hat_y = pred[i][j - 1] # starts at 1
+                P_hat_x = pred[i][j - 2] # starts at 0
+                #P_y = real[i][j - 1]
+                P_x = real[i][j - 2]
+                temp_x += np.sqrt((np.abs(P_hat_x) - np.abs(P_x))**2)
+                #temp_y += np.sqrt((P_hat_y - P_y)**2)
+                if (np.sign(P_hat_x) == np.sign(P_x)):
+                    sign_count +=1
+                temp_x = temp_x / sign_count
+                #print(sign_count)
+            acc_list.append((temp_x)/image_sequence_length)
+        return sum(acc_list)/pred.shape[0]
+
+    def customLoss2(self, pred, real, image_sequence_length):
+        acc_list = []
+        x_tau = (image_sequence_length-1)*2 -1
+        #sign_count = 1
+        for i in range(pred.shape[0]):
+            temp_x = 0.0
+            temp_y = 0.0
+            sign_count = 1
+            for j in range(2, x_tau, 2):
+                #P_hat_y = pred[i][j - 1] # starts at 1
+                P_hat_x = pred[i][j - 2] # starts at 0
+                #P_y = real[i][j - 1]
+                P_x = real[i][j - 2]
+                temp_x += np.sqrt((P_hat_x - P_x)**2)
+                #temp_y += np.sqrt((P_hat_y - P_y)**2)
+                if (np.sign(P_hat_x) == np.sign(P_x)):
+                    sign_count +=1
+                temp_x = temp_x / sign_count
+                #print(sign_count)
+            acc_list.append((temp_x)/image_sequence_length)
+        return sum(acc_list)/pred.shape[0]
+
     def x_error(self, pred, Y_train, image_sequence_length):
         acc_list = []
         x_tau = (image_sequence_length-1)*2 -1
         for i in range(pred.shape[0]):
             temp = 0.0
-            for j in range(2, x_tau):
-                P_hat_x = pred[i][j - 1] # starts at 1
-                P_x = Y_train[i][j - 1]
+            for j in range(2, x_tau, 2):
+                P_hat_x = pred[i][j - 2] # starts at 1
+                P_x = Y_train[i][j - 2]
                 temp += np.abs((P_hat_x  - P_x))
             acc_list.append(temp/image_sequence_length)
         x_err = sum(acc_list)/pred.shape[0]
@@ -480,9 +608,9 @@ class Genome():
         x_tau = (image_sequence_length-1)*2 -1
         for i in range(pred.shape[0]):
             temp = 0.0
-            for j in range(2, x_tau):
-                P_hat_y = pred[i][j - 2] # starts at 0
-                P_y = Y_train[i][j - 2]
+            for j in range(2, x_tau, 2):
+                P_hat_y = pred[i][j - 1] # starts at 0
+                P_y = Y_train[i][j - 1]
                 temp += np.abs((P_hat_y  - P_y))
             acc_list.append(temp/image_sequence_length)
         y_err = sum(acc_list)/pred.shape[0]
@@ -554,18 +682,18 @@ def l1_objective(p, image_sequence_length):
             # Y_test [0.1, 5.5, 0.3, 10.7]
             # Since our start point is implicitly always [0.0, 0.0]
             # (image_sequence_length-1)*2 -1 last coordinate
-            x_tau = (image_sequence_length-1)*2 -1
+            x_tau = (image_sequence_length-1)*2 -2
             # (image_sequence_length-1)*2 -1 Second last coordinate
-            y_tau = (image_sequence_length-1)*2 -2
+            y_tau = (image_sequence_length-1)*2 -1
             # P_ego <t+0> - P_dest <t+tau>
             temp += np.sqrt((p[i][x_tau] - 0.0)**2 + (p[i][y_tau] - 0.0)**2)
             flag = 0
         # these go up by 2,  P ego <t+i> - P dest <t+tau> , where i > 0
-        for j in range(2, x_tau):
+        for j in range(2, x_tau, 2):
             P_dest_x = p[i][x_tau] # starts at 3
-            P_ego_x = p[i][j - 1] # starts at 1
+            P_ego_x = p[i][j - 2] # starts at 1
             P_dest_y = p[i][y_tau] # starts at 2
-            P_ego_y = p[i][j - 2] # starts at 0
+            P_ego_y = p[i][j - 1] # starts at 0
             temp += np.sqrt((P_ego_x  - P_dest_x)**2 + (P_ego_y - P_dest_y)**2)
         dest_list.append(temp/image_sequence_length)
     l1 = sum(dest_list)/(p.shape[0]+1)
@@ -596,7 +724,7 @@ def l2_objective(p, t_delta, slide, image_sequence_length):
             #
             temp += np.abs((np.arctan2(p[i][2] - p[i][0], p[i][3] - p[i][1]) - np.arctan2(p[i][0] - 0.0, p[i][1] - 0.0))/t_delta)
         if image_sequence_length > 3:
-            for j in range(2,vector_len):
+            for j in range(2,vector_len, 2):
                 temp += np.abs((np.arctan2(p[i][j+2] - p[i][j], p[i][j+3] - p[i][j+1]) - np.arctan2(p[i][j] - p[i][j-2], p[i][j+1] - p[i][j-1]))/t_delta)
         vd.append(temp)
     l2 = sum(vd)/(p.shape[0]+1)
@@ -627,7 +755,7 @@ def l3_objective(p, t_delta, max_vel, slide, image_sequence_length):
             temp += np.abs(max_vel - ((p[i][1] - 0.0)/t_delta))
             flag = 0
         # these go up by 2
-        for j in range(2,vector_len):
+        for j in range(2,vector_len, 2):
             idx += 1
             temp += np.abs(max_vel - ((p[i][j+1] - p[i][j - 1])/t_delta))
         vf.append(temp/image_sequence_length)
@@ -659,7 +787,7 @@ def l3_objective_old(p, t_delta_train, slide, image_sequence_length):
             temp += (p[i][1] - 0.0)/t_delta_train[idx]
             flag = 0
         # these go up by 2
-        for j in range(2,vector_len):
+        for j in range(2,vector_len, 2):
             idx += 1
             temp += (p[i][j] - p[i][j - 2])/t_delta_train[idx]
         vf.append(temp/image_sequence_length)

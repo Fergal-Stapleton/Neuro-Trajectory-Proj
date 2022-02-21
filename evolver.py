@@ -232,8 +232,8 @@ class Evolver():
                     front[i].crowding_distance += (front[i+1].fitness_vector[m] - front[i-1].fitness_vector[m])/scale
 
     def crowding_operator(self, individual, other_individual):
-        print(individual.rank)
-        print(other_individual.rank)
+        #print(individual.rank)
+        #print(other_individual.rank)
         if (individual.rank < other_individual.rank) or \
             ((individual.rank == other_individual.rank) and (individual.crowding_distance > other_individual.crowding_distance)):
             return 1
@@ -241,6 +241,17 @@ class Evolver():
             return -1
 
     def tournament(self, population):
+        participants = random.sample(population, self.num_of_tour_particips)
+        best = None
+        for participant in participants:
+            #print(len(participants))
+            #print(participant)
+            #print(best)
+            if (best == None) or (self.crowding_operator(participant, best) == 1 and self.choose_with_prob(self.tournament_prob)):
+                best = participant
+        return best
+
+    def tournament_naive(self, population):
         participants = random.sample(population, self.num_of_tour_particips)
         best = None
         for participant in participants:
@@ -382,8 +393,8 @@ class Evolver():
         #graded = [x[1] for x in sorted(graded, key=lambda x: x[0], reverse=True)]
 
         #print(graded2)
-        #print(graded)
-        #sys.exit(0)
+        print(graded)
+        sys.exit(0)
 
         # Get the number we want to keep unchanged for the next cycle.
         elitist_length = int(len(graded)*self.retain)
