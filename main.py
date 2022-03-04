@@ -108,6 +108,8 @@ def main():
     #mo_type = 'naive-tournament-select'
     # NSGA-II
     mo_type = 'nsga-ii'
+    # NSGA-II
+    mo_type = 'moead'
 
     time_str = time.strftime("%Y-%m-%d_%H %M")
     path = PATH_SAVE_FIG + str(time_str) + '_' + str(run_num)
@@ -115,9 +117,9 @@ def main():
     # Can potentially have more models here
     if(MODEL_NAME == 'lstm_sliding'):
         parameters = PARAMETERS_LSTM
-        #model_function = model.lstm_model
+        model_function = model.lstm_model
         #model_function = model.lstm_autoencoder_model
-        model_function = model.lstm_test
+        #model_function = model.lstm_test
 
     print('\nLoad dataset...')
     data_set = load_data(MODEL_NAME)

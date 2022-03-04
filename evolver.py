@@ -511,6 +511,8 @@ class Evolver():
 
         return new_generation
 
+
+
 # Pareto dominance code taken from:
 # https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
 def is_pareto_efficient_simple(costs):

@@ -268,6 +268,26 @@ def lstm_autoencoder_model(X_train_shape, parameters):
 
     return model
 
+def genetic_CNN_lstm_test(X_train_shape, parameters, encoding):
+    hidden_units = int(parameters[0])
+    dropout_parameter = float(parameters[1])
+    momentum = float(parameters[2])
+    loss_function = str(parameters[3])
+    optimizer = str(parameters[4])
+    lstm_cells = int(parameters[5])
+    dropout = float(parameters[6])
+    cnn_flattened_layer_1 = int(parameters[7])
+    cnn_flattened_layer_2 = int(parameters[8])
+    lstm_flattened_layer_1 = int(parameters[9])
+    lstm_flattened_layer_2 = int(parameters[10])
+
+    print('Build model')
+    print('X_train shape: ', X_train_shape)
+    print('Final layer', DATA_SET_INFO['num_classes'])
+
+    input_shape = (int((DATA_SET_INFO['num_classes']+ 2) /2), DATA_SET_INFO['image_width'],
+                   DATA_SET_INFO['image_height'], DATA_SET_INFO['image_channels'])
+
 def lstm_test(X_train_shape, parameters):
     #print(parameters)
     #lr = int(parameters[8])
@@ -298,6 +318,40 @@ def lstm_test(X_train_shape, parameters):
     # define the CNN model
     # create cnn_model to train
     cnn_model = Sequential()
+
+
+    # Add second convolutional layer.
+    #cnn_model.add(ZeroPadding2D(padding=(2, 2)))
+    cnn_model.add(Conv2D(filters=32,
+                          kernel_size=(3, 3),
+                          padding='valid',
+                          strides=(1, 1),
+                          data_format='channels_last',
+                          input_shape=input_shape[1:],
+                          activation='relu',
+                          name='conv2'))
+
+    # --- STAGE 1 ---
+    #if encoding = '0-00':
+
+    #if encoding = '0-01':
+
+    #if encoding = '0-10':
+
+    #if encoding = '0-11':
+
+    #if encoding = '1-00':
+
+    #if encoding = '1-01':
+
+    #if encoding = '1-10':
+
+    #if encoding = '1-11': 
+
+    #cnn_model.add(BatchNormalization(momentum=0.95))
+    #cnn_model.add(BatchNormalization())
+    cnn_model.add(MaxPooling2D(pool_size=(3, 3), strides=2, padding='valid', name='pool2'))
+    cnn_model.add(Flatten(name='flat'))
 
     #convnet = build_convnet(input_shape[1:])
 
