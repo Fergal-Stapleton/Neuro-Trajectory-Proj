@@ -120,7 +120,7 @@ class Genome():
         self.update_hash()
 
     # Training for NSGA-II
-    def train_and_score_simplified(self, model_train, dataset, path, i, gen_max, run_n):
+    def train_and_score_simplified(self, model_train, dataset, path, i, gen_max, run_n, pop_index):
         logging.info("Getting training samples")
         logging.info("Compling Keras model")
 
@@ -154,6 +154,8 @@ class Genome():
         history = TrainingHistoryPlot(path, dataset, parameters, i)
 
         print("****** CHECK *******")
+        print("Individual being evaluated: ")
+        print(pop_index)
         np.set_printoptions(threshold=np.inf)
         #print(dataset.Y_train)
         #sys.exit()
@@ -622,10 +624,10 @@ class Genome():
         if self.accuracy == 0.0:
             self.accuracy, self.x_err, self.x_max, self.y_err, self.y_max, self.fitness_vector, self.score = self.train_and_score(model, trainingset, path, i, gen_max, run_n)
 
-    def train_short(self, model, trainingset, path, i, gen_max, run_n):
+    def train_short(self, model, trainingset, path, i, gen_max, run_n, pop_index):
         #don't bother retraining ones we already trained
         if self.accuracy == 0.0:
-            self.accuracy,self.x_err,self.x_max,self.y_err,self.y_max,self.fitness_vector, self.score = self.train_and_score_simplified(model, trainingset, path, i, gen_max, run_n)
+            self.accuracy,self.x_err,self.x_max,self.y_err,self.y_max,self.fitness_vector, self.score = self.train_and_score_simplified(model, trainingset, path, i, gen_max, run_n, pop_index)
 
     def print_genome(self):
         """Print out a genome."""

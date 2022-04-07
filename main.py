@@ -107,9 +107,11 @@ def main():
     # - *** This is used in experiments ***
     #mo_type = 'naive-tournament-select'
     # NSGA-II
-    mo_type = 'nsga-ii'
-    # NSGA-II
-    mo_type = 'moead'
+    #mo_type = 'nsga-ii'
+    # moead
+    #mo_type = 'moead'
+    # moead gra
+    mo_type = 'moead_gra'
 
     time_str = time.strftime("%Y-%m-%d_%H %M")
     path = PATH_SAVE_FIG + str(time_str) + '_' + str(run_num)
