@@ -42,7 +42,7 @@ class Evolver_moead():
         self.dist_mat  = None
         self.neighbour_table = None
         self.weights = None
-        self.neighbour_size = 3
+        self.neighbour_size = 7
         self.decomp_type = 0
         self.ideal_point = None
         self.nadir_point = None
@@ -406,7 +406,7 @@ class Evolver_moead():
             #if (self.decomp != 3) and (myFit[i][n] > self.nadir_point[n]):
             #    self.nadir_point[n] = myFit[i][n]
 
-    def solve(self, gen, genomes, temp_population, myFitParent, myFitOffspring, extArchivePop):
+    def solve(self, gen, genomes, temp_population, myFitParent, myFitOffspring, extArchivePop, type):
         self.parent_pop = genomes
         self.offspring_pop = temp_population
         self.parent_fit = myFitParent
@@ -419,7 +419,7 @@ class Evolver_moead():
         for i in range(self.pop_size):
             self.decomp(i)
 
-    def decomp(self, i):
+    def decomp(self, i, type):
         d = 0
         e = 0
         d_prime = 0
@@ -430,49 +430,76 @@ class Evolver_moead():
         subproblem_fitness_diff = []
         d_list = []
         e_list = []
-        for j in range(self.neighbour_size):
-            # Maybe order solutions on fitness????
-            weight_index = self.neighbour_table[i][j]
-            local_weights = self.weights[weight_index]
-            if (self.decomp_type == 0):
-                print('At least got here')
-                d = self.tcheycheffScalarObj(local_weights, self.offspring_fit[i])
-                e = self.tcheycheffScalarObj(local_weights, self.parent_fit[weight_index])
-            elif (self.decomp_type == 1):
-                d = self.pbiScalarObj(local_weights, self.offspring_fit[i])
-                e = self.pbiScalarObj(local_weights, self.parent_fit[weight_index])
-            elif (self.decomp_type == 2):
-                d = self.weightedScalarObj(local_weights, self.offspring_fit[i])
-                e = self.weightedScalarObj(local_weights, self.parent_fit[weight_index])
-            #elif (self.decomp_type == 3):
-            #    d = self.ipbiScalarObj(local_weights, self.offspring_fit[i])
-            #    e = self.ipbiScalarObj(local_weights, self.parent_fit[weight_index])
-            eps = 1e-50
-            diff = (e - d + eps) / (e + eps)
-            weight_index_list.append(weight_index)
-            #offspring_index_list.append(i)
-            subproblem_fitness_diff.append(diff)
-            d_list.append(d)
-            e_list.append(e)
 
-            # Minimization
-        print(d_list)
-        print(e_list)
-        print(subproblem_fitness_diff)
-        # NOTE: *** THIS CAN BE SWITCHED WITH SEMANTIC NEIGHBOURHOOD ORDERING *** (future paper???)
-        d_prime, e_prime, k = self.replacement_strategy(weight_index_list, subproblem_fitness_diff, d_list, e_list, i)
-        print(d_prime)
-        print(e_prime)
+        # Randomizes the neighbourhood ids and break upon first update
+        if type == 'moead':
+            id_list = range(0, self.neighbour_size)
+            for j in id_list:
+                # Maybe order solutions on fitness????
+                weight_index = self.neighbour_table[i][j]
+                local_weights = self.weights[weight_index]
+                if (self.decomp_type == 0):
+                    #print('At least got here')
+                    d = self.tcheycheffScalarObj(local_weights, self.offspring_fit[i])
+                    e = self.tcheycheffScalarObj(local_weights, self.parent_fit[weight_index])
+                elif (self.decomp_type == 1):
+                    d = self.pbiScalarObj(local_weights, self.offspring_fit[i])
+                    e = self.pbiScalarObj(local_weights, self.parent_fit[weight_index])
+                elif (self.decomp_type == 2):
+                    d = self.weightedScalarObj(local_weights, self.offspring_fit[i])
+                    e = self.weightedScalarObj(local_weights, self.parent_fit[weight_index])
+                if (d_prime < e_prime):
+                    #print('Neighbourhood update has occurred')
+                    self.parent_pop[weight_index] = self.offspring_pop[i]
+                    self.parent_fit[weight_index] = self.offspring_fit[i]
+                    self.extPop.append(self.parent_pop[weight_index])
+                    break
 
-        if (d_prime < e_prime):
-            print('Neighbourhood update has occurred')
-            self.parent_pop[k] = self.offspring_pop[i]
-            self.parent_fit[k] = self.offspring_fit[i]
-            self.extPop.append(self.parent_pop[k])
-            self.util[k] = (d_prime - e_prime) / e_prime
-            print(self.util[k])
-            #sys.exit()
-        #self.util[k] = e_prime
+        if type == 'moead_gra':
+            for j in range(self.neighbour_size):
+                # Maybe order solutions on fitness????
+                weight_index = self.neighbour_table[i][j]
+                local_weights = self.weights[weight_index]
+                if (self.decomp_type == 0):
+                    #print('At least got here')
+                    d = self.tcheycheffScalarObj(local_weights, self.offspring_fit[i])
+                    e = self.tcheycheffScalarObj(local_weights, self.parent_fit[weight_index])
+                elif (self.decomp_type == 1):
+                    d = self.pbiScalarObj(local_weights, self.offspring_fit[i])
+                    e = self.pbiScalarObj(local_weights, self.parent_fit[weight_index])
+                elif (self.decomp_type == 2):
+                    d = self.weightedScalarObj(local_weights, self.offspring_fit[i])
+                    e = self.weightedScalarObj(local_weights, self.parent_fit[weight_index])
+                #elif (self.decomp_type == 3):
+                #    d = self.ipbiScalarObj(local_weights, self.offspring_fit[i])
+                #    e = self.ipbiScalarObj(local_weights, self.parent_fit[weight_index])
+                eps = 1e-50
+                diff = (e - d + eps) / (e + eps)
+                weight_index_list.append(weight_index)
+                #offspring_index_list.append(i)
+                subproblem_fitness_diff.append(diff)
+                d_list.append(d)
+                e_list.append(e)
+
+                # Minimization
+
+            #print(d_list)
+            #print(e_list)
+            #print(subproblem_fitness_diff)
+            # NOTE: *** THIS CAN BE SWITCHED WITH SEMANTIC NEIGHBOURHOOD ORDERING *** (future paper???)
+            d_prime, e_prime, k = self.replacement_strategy(weight_index_list, subproblem_fitness_diff, d_list, e_list, i)
+            #print(d_prime)
+            #print(e_prime)
+
+            if (d_prime < e_prime):
+                print('Neighbourhood update has occurred')
+                self.parent_pop[k] = self.offspring_pop[i]
+                self.parent_fit[k] = self.offspring_fit[i]
+                self.extPop.append(self.parent_pop[k])
+                self.util[k] = d_prime
+                print(self.util[k])
+                #sys.exit()
+            #self.util[k] = e_prime
 
 
 
@@ -562,16 +589,11 @@ class Evolver_moead_gra(Evolver_moead):
     def utility_aggreg_func(self, g_hist, i, delta_T):
         # In the paper i is used to index pop, I've used j since I have already used i to dentote gen index
         u = [None]*int(self.pop_size)
-        g_hist_sum = [0.0]*int(self.pop_size)
         eps = 1e-50
         #g_hist_sum = 0
-        # Nee to get acculated difference over last delta T generations
         for j in range(self.pop_size):
-            for k in range(1,(delta_T+1)):
-                g_hist_sum[j] += g_hist[i - k][j]
-        for j in range(self.pop_size):
-            if g_hist_sum[j] != 0:
-                u[j] = (g_hist_sum[j] - g_hist[i][j]) / g_hist_sum[j]
+            if (g_hist[i][j] < g_hist[i - delta_T][j]):
+                u[j] = (g_hist[i - delta_T][j] - g_hist[i][j] + eps) / (g_hist[i - delta_T][j] + eps)
             else:
                 u[j] = 0
         return u

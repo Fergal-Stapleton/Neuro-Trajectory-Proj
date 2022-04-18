@@ -23,10 +23,10 @@ class GeneticAlgorithm:
         self.params = params
         self.model = model
         self.total_run = 5
-        self.population = 10
-        self.generations = 3
+        self.population = 45
+        self.generations = 15
         self.decomp = 0
-        self.delta_T = 1
+        self.delta_T = 3
         self.run_n = run_num
         self.create_dirs()
 
@@ -45,9 +45,9 @@ class GeneticAlgorithm:
         elif mo_type == "nsga-ii":
             self.generate_nsga2()
         elif mo_type == "moead":
-            self.generate_moead()
+            self.generate_moead(mo_type)
         elif mo_type == "moead_gra":
-            self.generate_moead_gra()
+            self.generate_moead_gra(mo_type)
 
     # This repetitious but I dont to re-train the model here, just save the Pareto selected networks
     # save_genomes and train_simplified functions are train_genomes function split into two parts
@@ -343,7 +343,7 @@ class GeneticAlgorithm:
         file.close()
 
 
-    def generate_moead(self):
+    def generate_moead(self, mo_type):
         logging.info("***generate(generations, population, all_possible_genes, dataset)***")
         t_start = datetime.datetime.now()
         t = time.time()
@@ -416,12 +416,12 @@ class GeneticAlgorithm:
                 myFitOffspring[count2] = genome.fitness_vector
 
             # Apply decomp approach - Note in Java code this falls under the generational() method in main class file
-            evolver.solve(i, genomes, new_population, myFitParent, myFitOffspring, extArchivePop)
-            genomes = evolver.parent_pop
+            evolver.solve(i, genomes, new_population, myFitParent, myFitOffspring, extArchivePop, mo_type)
+            genomes = deepcopy(evolver.parent_pop)
             #new_population = evolver.offspring_pop
-            myFitParent = evolver.parent_fit
+            myFitParent = deepcopy(evolver.parent_fit)
             #myFitOffspring = evolver.offspring_fit
-            extArchivePop = evolver.extPop
+            extArchivePop = deepcopy(evolver.extPop)
 
             # Remove duplicates and dominated solutions from extPop
             # TODO
@@ -486,7 +486,7 @@ class GeneticAlgorithm:
 
 
 
-    def generate_moead_gra(self):
+    def generate_moead_gra(self, mo_type):
         # printout various arrays for testing purposes
         printout = True
 
@@ -552,7 +552,7 @@ class GeneticAlgorithm:
 
         # Evolve the generation.
         max_updates = int(self.generations * self.population)
-        update_counter_eval = 0
+        update_counter_eval = int(self.population) # We first fully evaluate the population
         update_counter_utility = 0
         i = 0
         bin_archive = []
@@ -588,32 +588,59 @@ class GeneticAlgorithm:
             # output: poi
             rand = random.random()
             # The simplest approach is to generate a temp pop and only evaluate
-            print(genomes)
+            #print(genomes)
             temp_population = deepcopy(genomes)
-            print(temp_population)
+            #print(temp_population)
             # self.delta_T = 3
 
             for j in range(self.population):
                 if rand <= poi[j]:
                     bin_mask[j] = 1
                     temp_population[j] = new_population[j]
-            print(temp_population)
+            #print(temp_population)
+
+
 
             update_counter_eval = update_counter_eval + int(sum(bin_mask))
             bin_archive.append(deepcopy(bin_mask))
+
+            # TEST:
+            if printout == True:
+                print("------------------------------------------------")
+                print("")
+                print("Utility aggregation function - u ")
+                print(u)
+                print("")
+                print("Probabilty of improvement - poi ")
+                print(poi)
+                print("")
+                print("Randomly genetrated number to create Binary mask")
+                print(rand)
+                print("")
+                print("Current Binary mask")
+                print(bin_mask)
+                print("")
+                print("Full Binary mask archive")
+                print(bin_archive)
+                print("")
+                print("G_hist")
+                print(g_hist)
+                print("")
+                print("Current evals processed")
+                print(update_counter_eval)
 
 
             # Since we only evaluate updated values
             self.train_simplified_gra(temp_population, writer, 0, bin_mask)
             for genome in temp_population:
-                print('geneome before')
+                print('genome before')
                 print(genome.fitness_vector)
             for count2, genome in enumerate(temp_population):
                 myFitOffspring[count2] = genome.fitness_vector
 
             # Apply decomp approach - Note in Java code this falls under the generational() method in main class file
             #solve(self, gen, genomes, new_population, myFitParent, myFitOffspring, extArchivePop):
-            evolver.solve(i, genomes, temp_population, myFitParent, myFitOffspring, extArchivePop)
+            evolver.solve(i, genomes, temp_population, myFitParent, myFitOffspring, extArchivePop, mo_type)
             genomes = deepcopy(evolver.parent_pop)
             #new_population = evolver.offspring_pop
             myFitParent = deepcopy(evolver.parent_fit)
@@ -624,29 +651,13 @@ class GeneticAlgorithm:
 
 
             if update_counter_utility == self.delta_T:
-                u = evolver.utility_aggreg_func(g_hist, i, self.delta_T)
+                # i + 1 because g_hist is one ahead
+                u = evolver.utility_aggreg_func(g_hist, i+1, self.delta_T)
                 poi = evolver.prob_of_improv(u)
                 update_counter_utility = -1
             update_counter_utility = int(update_counter_utility) + 1
 
-            # TEST:
-            if printout == True:
-                print("------------------------------------------------")
-                print("")
-                print("Utility aggregarion function - u ")
-                print(u)
-                print("")
-                print("Probabilty of improvement - poi ")
-                print(poi)
-                print("")
-                print("Randomly genetrated nunber to create Binary mask")
-                print(rand)
-                print("")
-                print("Binary mask")
-                print(bin_mask)
-                print("")
-                print("")
-            print(g_hist)
+
 
             # Remove duplicates and dominated solutions from extPop
             # TODO
@@ -685,6 +696,11 @@ class GeneticAlgorithm:
             output_file = open(self.path + '/bin_mask.txt', 'w')
             for b in bin_archive:
                 str_list = ''.join(str(e) for e in b)
+                output_file.write(str_list + '\n')
+
+            output_file2 = open(self.path + '/g_hist.txt', 'w')
+            for g in g_hist:
+                str_list = ''.join(str(e) for e in g)
                 output_file.write(str_list + '\n')
 
             output_file.close()
