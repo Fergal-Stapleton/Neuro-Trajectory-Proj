@@ -42,7 +42,7 @@ class Evolver_moead():
         self.dist_mat  = None
         self.neighbour_table = None
         self.weights = None
-        self.neighbour_size = 7
+        self.neighbour_size = 3
         self.decomp_type = 0
         self.ideal_point = None
         self.nadir_point = None
@@ -417,7 +417,7 @@ class Evolver_moead():
         for i in range(self.pop_size):
             self.update_ref(i, self.offspring_fit)
         for i in range(self.pop_size):
-            self.decomp(i)
+            self.decomp(i, type)
 
     def decomp(self, i, type):
         d = 0
@@ -448,8 +448,8 @@ class Evolver_moead():
                 elif (self.decomp_type == 2):
                     d = self.weightedScalarObj(local_weights, self.offspring_fit[i])
                     e = self.weightedScalarObj(local_weights, self.parent_fit[weight_index])
-                if (d_prime < e_prime):
-                    #print('Neighbourhood update has occurred')
+                if (d < e):
+                    print('Neighbourhood update has occurred')
                     self.parent_pop[weight_index] = self.offspring_pop[i]
                     self.parent_fit[weight_index] = self.offspring_fit[i]
                     self.extPop.append(self.parent_pop[weight_index])

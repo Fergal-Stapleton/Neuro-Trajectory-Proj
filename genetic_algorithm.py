@@ -23,8 +23,8 @@ class GeneticAlgorithm:
         self.params = params
         self.model = model
         self.total_run = 5
-        self.population = 45
-        self.generations = 15
+        self.population = 10
+        self.generations = 2
         self.decomp = 0
         self.delta_T = 3
         self.run_n = run_num
@@ -701,9 +701,11 @@ class GeneticAlgorithm:
             output_file2 = open(self.path + '/g_hist.txt', 'w')
             for g in g_hist:
                 str_list = ''.join(str(e) for e in g)
-                output_file.write(str_list + '\n')
+                # in orginal experimentation this was output_file.write() as such bin_mask contains both g_hist and bin_acrhive,
+                output_file2.write(str_list + '\n')
 
             output_file.close()
+            output_file2.close()
 
             # Get the average accuracy for this generation.
             average_accuracy = self.get_average_accuracy(extArchivePop)
