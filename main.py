@@ -107,9 +107,9 @@ def main():
     # - *** This is used in experiments ***
     #mo_type = 'naive-tournament-select'
     # NSGA-II
-    #mo_type = 'nsga-ii'
+    mo_type = 'nsga-ii'
     # moead
-    mo_type = 'moead'
+    #mo_type = 'moead'
     # moead gra
     #mo_type = 'moead_gra'
 

@@ -340,26 +340,35 @@ class Evolver():
         solutions = [x[0] for x in solutionsTuple]
         genome_hash = [x[1] for x in solutionsTuple]
         acc = [x[0] for x in graded]
+
         obj1 = []
         obj2 = []
         obj3 = []
         accVec = []
         hash = []
-        for i in range(len(solutions)):
-            obj1.append(solutions[i][0])
-            obj2.append(solutions[i][1])
-            obj3.append(solutions[i][2])
-            accVec.append(acc[i])
-            hash.append(genome_hash[i])
 
-        #print(np.column_stack((np.array(obj1), np.array(obj2), np.array(obj3), np.array(acc))))
-        #costs = np.column_stack((np.array(obj1), np.array(obj2)))
-        costs = np.column_stack((np.array(obj1), np.array(obj2), np.array(obj3)))
+        if len(genome.fitness_vector) == 3:
+            for i in range(len(solutions)):
+                obj1.append(solutions[i][0])
+                obj2.append(solutions[i][1])
+                obj3.append(solutions[i][2])
+                accVec.append(acc[i])
+                hash.append(genome_hash[i])
+            costs = np.column_stack((np.array(obj1), np.array(obj2), np.array(obj3)))
+            bool_non_dom_sol_df = is_pareto_efficient_simple(costs)
+            df = pd.DataFrame(costs, columns=['obj1', 'obj2', 'obj3'])
+        elif len(genome.fitness_vector) == 2:
+            for h in range(len(solutions)):
+                obj1.append(solutions[h][0])
+                obj2.append(solutions[h][1])
+                accVec.append(acc[i])
+                hash.append(genome_hash[i])
+            costs = np.column_stack((np.array(obj1), np.array(obj2)))
+            bool_non_dom_sol_df = is_pareto_efficient_simple(costs)
+            df = pd.DataFrame(costs, columns=['obj1', 'obj2'])
         #print(costs)
 
-        bool_non_dom_sol_df = is_pareto_efficient_simple(costs)
 
-        df = pd.DataFrame(costs, columns=['obj1', 'obj2', 'obj3'])
         df['hash'] = hash
         df['non_dominated'] = bool_non_dom_sol_df
         non_dom = sum(bool_non_dom_sol_df)
@@ -482,8 +491,8 @@ class Evolver():
 
         new_generation = random.sample(new_pop, len(pop))
 
-        #mo_type = 'naive-rand'
         # NAIVE - TOURNAMENT SELECTION W/ OBJECTIVE AGGREGATE (as described in the NeuroEvolutionary paper)
+        #mo_type = 'naive-rand'
         mo_type = 'naive-tournament-select'
 
         if mo_type == 'naive-rand':

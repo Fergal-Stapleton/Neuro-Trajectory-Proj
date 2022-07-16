@@ -474,6 +474,7 @@ class Evolver_moead():
                 #    d = self.ipbiScalarObj(local_weights, self.offspring_fit[i])
                 #    e = self.ipbiScalarObj(local_weights, self.parent_fit[weight_index])
                 eps = 1e-50
+                # d should always be less than e. The smaller d the closser diff gets to 1. diff can be negative, when the offspring is worse than parent
                 diff = (e - d + eps) / (e + eps)
                 weight_index_list.append(weight_index)
                 #offspring_index_list.append(i)
@@ -504,7 +505,8 @@ class Evolver_moead():
 
 
     def replacement_strategy(self, weight_index_list, subproblem_fitness_diff, d_list, e_list, i):
-
+        print(subproblem_fitness_diff)
+        print(max(subproblem_fitness_diff))
         index = subproblem_fitness_diff.index(max(subproblem_fitness_diff))
         weight_index = weight_index_list[index]
         local_weights = self.weights[weight_index]
@@ -520,16 +522,16 @@ class Evolver_moead():
         return d_prime, e_prime, weight_index
 
     def tcheycheffScalarObj(self, _lambda, f):
-        min_fun = float("inf")
+        max_fun = -float("inf")
         for n in range(self.m):
             diff = abs( f[n] - self.ideal_point[n] )
             if (_lambda[n] == 0):
                 feval = 0.00001 * diff
             else:
                 feval = diff * _lambda[n]
-            if (feval < min_fun):
-                min_fun = feval
-        return min_fun
+            if (feval > min_fun):
+                max_fun = feval
+        return max_fun
 
     def pbiScalarObj(self, _lambda, f):
         fun = float("inf")
@@ -592,6 +594,7 @@ class Evolver_moead_gra(Evolver_moead):
         eps = 1e-50
         #g_hist_sum = 0
         for j in range(self.pop_size):
+            # IF statement insures u_j is not negative. A negative u_j would lead to
             if (g_hist[i][j] < g_hist[i - delta_T][j]):
                 u[j] = (g_hist[i - delta_T][j] - g_hist[i][j] + eps) / (g_hist[i - delta_T][j] + eps)
             else:

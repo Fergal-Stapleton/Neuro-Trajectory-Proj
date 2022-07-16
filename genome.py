@@ -323,8 +323,8 @@ class Genome():
             print("One or more objectives were stored as NaN, exiting...")
             sys.exit()
 
-        L = [pred_acc, l2, l3]
-        #L = [l2, l3]
+        #L = [pred_acc, l2, l3]
+        L = [pred_acc, l1]
 
         K.clear_session()
 
@@ -489,8 +489,8 @@ class Genome():
 
         # to get true velocity average x5
         #l3 = l3 * 5
-        L = [pred_acc, l2, l3]
-        #L = [l2, l3]
+        #L = [pred_acc, l2, l3]
+        L = [pred_acc, l1]
         print(L)
         print(pred_acc)
         #sys.exit()

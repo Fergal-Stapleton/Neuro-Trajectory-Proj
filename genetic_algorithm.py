@@ -429,16 +429,22 @@ class GeneticAlgorithm:
             #print(solutionsTuple)
             solutions = [x[0] for x in solutionsTuple]
 
-            obj1 = []
-            obj2 = []
-            obj3 = []
-
-            for h in range(len(solutions)):
-                obj1.append(solutions[h][0])
-                obj2.append(solutions[h][1])
-                obj3.append(solutions[h][2])
-
-            costs = np.column_stack((np.array(obj1), np.array(obj2), np.array(obj3)))
+            if len(genome.fitness_vector) == 3:
+                obj1 = []
+                obj2 = []
+                obj3 = []
+                for h in range(len(solutions)):
+                    obj1.append(solutions[h][0])
+                    obj2.append(solutions[h][1])
+                    obj3.append(solutions[h][2])
+                costs = np.column_stack((np.array(obj1), np.array(obj2), np.array(obj3)))
+            elif len(genome.fitness_vector) == 2:
+                obj1 = []
+                obj2 = []
+                for h in range(len(solutions)):
+                    obj1.append(solutions[h][0])
+                    obj2.append(solutions[h][1])
+                costs = np.column_stack((np.array(obj1), np.array(obj2)))
             bool_non_dom_sol_df = evolver.is_pareto_efficient_simple(costs)
 
             extArchivePop = list(compress(extArchivePop, bool_non_dom_sol_df))
@@ -667,16 +673,22 @@ class GeneticAlgorithm:
 
             #self.save_genomes(extArchivePop, writer, i)
 
-            obj1 = []
-            obj2 = []
-            obj3 = []
-
-            for h in range(len(solutions)):
-                obj1.append(solutions[h][0])
-                obj2.append(solutions[h][1])
-                obj3.append(solutions[h][2])
-
-            costs = np.column_stack((np.array(obj1), np.array(obj2), np.array(obj3)))
+            if len(genome.fitness_vector) == 3:
+                obj1 = []
+                obj2 = []
+                obj3 = []
+                for h in range(len(solutions)):
+                    obj1.append(solutions[h][0])
+                    obj2.append(solutions[h][1])
+                    obj3.append(solutions[h][2])
+                costs = np.column_stack((np.array(obj1), np.array(obj2), np.array(obj3)))
+            elif len(genome.fitness_vector) == 2:
+                obj1 = []
+                obj2 = []
+                for h in range(len(solutions)):
+                    obj1.append(solutions[h][0])
+                    obj2.append(solutions[h][1])
+                costs = np.column_stack((np.array(obj1), np.array(obj2)))
             bool_non_dom_sol_df = evolver.is_pareto_efficient_simple(costs)
 
             extArchivePop = list(compress(extArchivePop, bool_non_dom_sol_df))
