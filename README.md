@@ -1,5 +1,8 @@
 # NeuroTrajectory
 
+Originally developed from source code:
+https://github.com/RovisLab/NeuroTrajectory
+
 
 ## Installation
 
