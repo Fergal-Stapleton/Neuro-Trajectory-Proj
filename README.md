@@ -1,6 +1,6 @@
-# NeuroTrajectory
+# Neuro-Trajectory-Proj
 
-Originally developed from source code:
+Code here is based on and further developed from:
 https://github.com/RovisLab/NeuroTrajectory
 
 
